@@ -1,4 +1,5 @@
 import type { Model } from './model';
+import GeometryWorker from './geometry.worker.ts?worker';
 export type Compiled = {
   positions: Float32Array;
   dimensions: number[];
@@ -12,10 +13,8 @@ export type Comparison = {
 };
 function runWorker<T>(payload: unknown, signal?: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL('./geometry.worker.ts', import.meta.url),
-      { type: 'module' },
-    );
+    // Let Vite resolve a browser-served URL across client and SSR transforms.
+    const worker = new GeometryWorker();
     let timer: ReturnType<typeof setTimeout>;
     const cleanup = () => {
       clearTimeout(timer);
