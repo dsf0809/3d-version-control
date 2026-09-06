@@ -1,4 +1,5 @@
 import { sample, validateModel } from '../cad/model';
+import { demoProject, demoHistory } from './demo';
 import { parseHistory, type Revision } from '../cad/history';
 import { HttpError } from './http';
 import {
@@ -159,11 +160,21 @@ export class ProjectStore {
       ),
     };
   }
+  async demo(owner: string) {
+    return this.create(
+      owner,
+      demoProject,
+      demoHistory(),
+      'built-in-tray-demo-v1',
+      'demo',
+    );
+  }
   async create(
     owner: string,
     input: unknown,
     legacy?: unknown,
     importKey?: string,
+    source: 'browser' | 'demo' = 'browser',
   ) {
     const data = validateProject(input);
     if (importKey) {
@@ -289,7 +300,11 @@ export class ProjectStore {
           i,
           JSON.stringify(validateModel(r.model)),
           r.prompt,
-          legacy ? 'Imported from browser history.' : '',
+          source === 'demo'
+            ? r.prompt
+            : legacy
+              ? 'Imported from browser history.'
+              : '',
           r.createdAt || date,
         ),
       ),

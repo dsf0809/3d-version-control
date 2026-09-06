@@ -26,6 +26,8 @@ For a hosted Sites deployment, configure `OPENAI_API_KEY` as a secret and `OPENA
 
 ## Use
 
+- Every workspace includes **Demo — tray comparison**, with two saved versions and no API key required. V0 has the divider on the right; V1 moves it left. Open the demo from the project picker and select **Changes Comparison** to see red removal, green addition, and gray unchanged material. The demo is included in the source and created once per user; reopening it preserves your edits.
+
 - Orbit by dragging, zoom with the wheel, pan with the right mouse button. Touch supports orbit and pinch zoom.
 - Describe a simple part, including millimeter dimensions. Enter sends; Shift+Enter inserts a new line.
 - Use the project name in the header to create or reopen projects and edit the design brief and requirements. Those details and the exact selected model are included in every AI request.

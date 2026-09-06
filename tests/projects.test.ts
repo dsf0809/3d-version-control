@@ -6,6 +6,7 @@ import { ProjectStore } from '../lib/projects/store';
 import { runTurn } from '../lib/projects/service';
 import { sample, type Model } from '../lib/cad/model';
 import { initialRevision } from '../lib/cad/history';
+import { compareGeometry } from '../lib/cad/geometry';
 import { ownerOf, readBody } from '../lib/projects/http';
 import type { ProjectDetail, TurnInput } from '../lib/projects/types';
 
@@ -105,6 +106,24 @@ function provider(model: Model | null = sample) {
   }) as typeof fetch;
   return { calls, fetcher };
 }
+void test('built-in demo has two comparable versions and is created once per owner', async () => {
+  const { store, sqlite } = fixture();
+  const p = await store.demo('alice');
+  assert.equal(p.revisions.length, 2);
+  assert.equal(p.selectedRevisionId, p.revisions[1].id);
+  assert.equal(p.revisions[1].parentId, p.revisions[0].id);
+  const { volumes } = compareGeometry(
+    p.revisions[0].model,
+    p.revisions[1].model,
+  );
+  assert.ok(volumes.added > 0 && volumes.removed > 0 && volumes.unchanged > 0);
+  await store.update('alice', p.id, { name: 'My edited demo' });
+  const reopened = await store.demo('alice');
+  assert.equal(reopened.id, p.id);
+  assert.equal(reopened.name, 'My edited demo');
+  assert.notEqual((await store.demo('bob')).id, p.id);
+  sqlite.close();
+});
 const run = (
   store: ProjectStore,
   input: TurnInput,

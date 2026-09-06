@@ -126,17 +126,16 @@ export function useProjects() {
             'Browser history could not be imported automatically. Its original backup is preserved.',
           );
         }
-        if (!list.length) {
-          const created = await api<ProjectDetail>('/api/projects', {
+        {
+          const demo = await api<ProjectDetail>('/api/projects', {
             method: 'POST',
             signal: abort.signal,
             body: JSON.stringify({
-              name: 'My first project',
-              importKey: 'initial-workspace',
+              action: 'demo',
             }),
           });
-          list = [created];
-          imported = created;
+          if (!list.length) imported = demo;
+          if (!list.some((p) => p.id === demo.id)) list = [...list, demo];
         }
         setProjects(list);
         let preferred = '';

@@ -17,6 +17,8 @@ export async function POST(request: Request) {
   try {
     const owner = ownerOf(request),
       body = await readBody(request, 2000000);
+    if (body?.action === 'demo')
+      return json(await projectStore().demo(owner), 201);
     if (
       body.importKey != null &&
       (typeof body.importKey !== 'string' || body.importKey.length > 100)
