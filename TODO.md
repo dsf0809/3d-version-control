@@ -14,7 +14,7 @@ download. Live AI testing returned a usage-limit error; successful live generati
 is not verified. Offline tests make no API calls and do not measure AI quality.
 
 The implementation batch is included in the local commit checkpoint below.
-Push and hosted deployment remain pending; the hosted site may differ from the
+The implementation is pushed to GitHub; hosted deployment remains pending and may differ from the
 local app. Local database migrations have been applied.
 
 ## Completed
@@ -92,7 +92,7 @@ local app. Local database migrations have been applied.
   publishing sharing. No site-wide access changes have been made.
 
 - [x] Review and commit the completed local batch (2026-09-10).
-- [ ] Push the local commit when requested.
+- [x] Push implementation commit b3d6193 to GitHub main (2026-09-10).
 - [ ] Apply hosted migrations and deploy when requested; verify hosted workflows.
 - [ ] Optional successful live AI smoke test when specifically requested and API
   quota is available. Default development verification stays offline.
@@ -226,3 +226,8 @@ sharing and exports, responsive comparison UI, camera anchoring and fullscreen.
 type checking passed. Secret-pattern scan found no matches; local environment
 and database files remain ignored. Per-feature colors have not been implemented.
 This checkpoint records a local commit only; push and deployment remain pending.
+
+### 2026-09-10 — GitHub push
+
+Pushed implementation commit b3d6193 to origin/main successfully. This follow-up
+records the completed push; hosted migrations and deployment remain pending.
