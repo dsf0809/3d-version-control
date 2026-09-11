@@ -1,73 +1,169 @@
 # Form — 3D Workshop
 
-A two-panel AI chat and interactive 3D workspace with durable projects, saved conversations, model branches, and solid-geometry comparisons.
+**Describe a part. Inspect every change. Keep the versions that work.**
+
+Form is an AI-assisted workspace for functional 3D-printed parts. Chat beside an
+interactive model, preview proposed edits, and compare saved versions before
+accepting a change. Removed geometry is **red**, added geometry is **green**, and
+unchanged geometry is **gray**.
+
+Use it to explore trays, enclosures, simple brackets, and other parts built from
+basic solids. Start with the included tray demo—no API key needed.
+
+> **Development preview:** the core workflows are implemented and covered by
+> offline tests. Successful live AI generation, cross-slicer import validation,
+> and physical printing validation remain release checks. See [TODO.md](TODO.md)
+> for current progress and outstanding work.
+
+## Try the comparison demo
+
+After starting the app locally:
+
+1. Choose **Continue to your workshop**.
+2. Open **Demo — tray comparison** from the project sidebar.
+3. Select **Changes Comparison** and compare **V0 → V1**. The tray divider moves
+   from right to left; red and green show its old and new locations.
+4. Use **From**, **To**, and **Swap** to inspect versions in either direction.
+5. Switch to **Model Original** to see the model without comparison colors.
+6. Use **Export & print** to download an accepted revision for your slicer.
+
+The demo contains saved models; it does not simulate a live AI response. It is
+created once per user, and reopening it preserves subsequent edits.
+
+## What you can do
+
+| Capability | How it helps |
+| --- | --- |
+| AI proposals | Describe an edit, inspect the result, then accept, refine, or discard it |
+| Version comparison | Compare any two saved project revisions, including across branches, or preview a pending proposal |
+| Saved projects and branches | Return to earlier designs with their conversation and revision history |
+| Manual feature edits | Adjust dimensions and position without an AI request |
+| Dimension locks | Protect selected feature dimensions across AI edits, manual edits, branches, and restoration |
+| Measured changes | Read before/after values and highlight the affected feature bounds |
+| Focus and fullscreen | Expand the model view while inspecting details; focus toggling preserves model scale and screen position |
+| Editable JSON import | Start a new project from a previously exported Form model |
+| STL and 3MF export | Download accepted geometry in millimeters for slicer preparation |
+| Read-only sharing | Share a fixed accepted revision, revoke its link, and control the STL download option |
+
+Projects can be searched, renamed, archived, and restored from the sidebar.
+The layout adapts to desktop, laptop, and narrower windows.
 
 ## Run locally
 
-Requires Node.js 22.13 or newer and pnpm.
+**Requirements:** Node.js 22.13 or newer and pnpm.
 
 ```sh
+git clone https://github.com/dsf0809/3d-version-control.git form-3d-workshop
+cd form-3d-workshop
 pnpm install
-cp .env.example .env # only if .env does not already exist
+# Preserve an existing local configuration.
+test -f .env || cp .env.example .env
 pnpm db:migrate
 pnpm dev
 ```
 
-Open the local URL printed in the terminal and choose **Continue to your workshop**. Local development uses the Sites plugin’s fixed test identity; hosted private Sites use the signed-in user. A sample tray works without an API key. Fill in `.env` to enable actual AI chat:
+Open the URL printed in the terminal, normally `http://localhost:3000`, and choose
+**Continue to your workshop**. Local sign-in uses the Sites plugin's fixed test
+identity; it is intended for development.
+
+You can explore the demo, compare versions, edit features manually, and export
+models without configuring an AI key.
+
+### Enable AI chat
+
+Set these values in your local `.env` file:
 
 ```dotenv
 OPENAI_API_KEY=your-key-here
 OPENAI_MODEL=gpt-6-astra
 ```
 
-Use a Responses API model available to your account with structured output support. Restart the development server after changing these values. The key remains on the server; never put it in a `VITE_` or `NEXT_PUBLIC_` variable. Do not commit `.env`. The status endpoint checks configuration only; a successful chat verifies key, billing and model access.
+`OPENAI_MODEL` is configurable. Use a model available to your API account that
+supports the Responses API and structured outputs. Restart the development server
+after changing the file.
 
-For a hosted Sites deployment, configure `OPENAI_API_KEY` as a secret and `OPENAI_MODEL` as an environment variable through Sites. Local `.env` is not uploaded to the hosted environment. The private preview ships without credentials until configured. Do not make it public with a shared API key without adding per-user authentication and usage limits.
+The key stays on the server. Keep `.env` out of Git and never put the key in a
+`VITE_` or `NEXT_PUBLIC_` variable. The connection indicator checks configuration;
+it does not verify credentials, quota, or successful generation. Sending a real
+chat request uses your API account and may incur charges.
 
-## Use
+Try a specific request such as:
 
-- Every workspace includes **Demo — tray comparison**, with two saved versions and no API key required. V0 has the divider on the right; V1 moves it left. Open the demo from the project picker and select **Changes Comparison** to see red removal, green addition, and gray unchanged material. The demo is included in the source and created once per user; reopening it preserves your edits.
+> Move the tray divider 10 mm to the left. Keep the outer dimensions unchanged.
 
-- Orbit by dragging, zoom with the wheel, pan with the right mouse button. Touch supports orbit and pinch zoom.
-- Describe a simple part, including millimeter dimensions. Enter sends; Shift+Enter inserts a new line.
-- Use the project name in the header to create or reopen projects and edit the design brief and requirements. Those details and the exact selected model are included in every AI request.
-- Each branch creates an OpenAI Conversation on its first chat, then reuses it across reloads. Switching branches restores that branch’s discussion.
-- The server validates complete responses and solid geometry before saving a proposal and its chat in one transaction. The accepted model stays unchanged until **Accept changes**. **Discard** preserves it, and **Refine** continues from the pending proposal. Pending proposals survive reloads. A failed or cancelled refinement preserves the previous proposal.
-- Export binary STL. Coordinates remain in millimeters and Z points up, independent of viewer orbit.
-- Grid, wireframe and fit-to-model controls aid inspection.
-- Accepting a proposal creates one revision. Repeated acceptance is idempotent; stale proposals cannot overwrite a changed branch. Review decisions are included in subsequent AI context.
-- Changes Comparison shows removed volume in red (before minus after), added volume in green (after minus before), and unchanged volume in gray (intersection). Gray is translucent to expose internal changes. Geometry stays in shared model coordinates; movement counts as removal and addition.
-- Model Original displays the proposed model when reviewing, or the selected accepted revision otherwise. **Show accepted model** toggles between them. Changes Comparison compares a proposal with its accepted base. Export always downloads the selected accepted revision through an authenticated endpoint, never the proposal or colored comparison solids.
-- Select an earlier revision to inspect it. Sending a message from that revision starts a new branch with context through that point. Use **New branch** to branch explicitly. Comparison follows the actual parent, even when version numbers skip.
-- **Restore this version** prepares an older model as a proposal on the branch head. Accept it to create a new revision while preserving history.
-- Model schema v2 adds persistent feature IDs. Existing snapshots are upgraded on load without changing geometry. Legacy IDs are derived from feature names and types; historical renames or ambiguous duplicate features cannot always be identified perfectly. New AI models must include unique IDs and preserve existing feature identities.
-- Refer to a saved version by its label, such as “Use V2 dimensions,” to include that exact model in the request.
-- Projects, model snapshots, chat, and branch conversation identifiers are stored in D1. Local development persists the database in `.wrangler/state/v3/d1`; hosted deployment uses a separate managed database. Browser storage only keeps the last-opened project preference and an untouched legacy backup. Clearing browser storage does not delete saved projects.
-- Existing browser revisions are imported once per owner and history fingerprint (up to 200 revisions). The original backup is preserved. The previous app did not save chat, so earlier chat cannot be recovered.
+## Design, review, and print
 
-## Scope and limitations
+1. **Create or import a project.** Add a brief and requirements in project details,
+   or use **Import model JSON** in the sidebar. Imports accept Form model JSON up
+   to 1 MB, not STL, 3MF, or arbitrary CAD scripts.
+2. **Request or make an edit.** Chat with the assistant or use **Edit dimensions**.
+   AI responses and resulting geometry are validated before a proposal is saved.
+3. **Review the proposal.** Use the comparison and measured changes. The accepted
+   design stays unchanged until you choose **Accept changes**. Pending proposals
+   survive reloads; failed or cancelled refinements preserve the previous proposal.
+4. **Save or revisit a version.** Acceptance creates a revision. Inspect earlier
+   revisions, create branches, or use **Restore this version** to prepare a new
+   proposal from an older design without deleting history.
+5. **Export an accepted revision.** Open **Export & print** and choose a format.
+   Viewing a proposal or selecting a comparison pair does not make that proposal
+   or comparison geometry the export target.
+6. **Prepare the print in your slicer.** Choose the printer and filament, check
+   scale and orientation, add supports if needed, inspect the toolpath, and use
+   the slicer's normal print workflow.
 
-The first geometry language supports up to 48 sequential union/subtraction operations on boxes, elliptical cylinders and ellipsoids, with position, rotation and dimensions. This can represent trays, enclosures, basic brackets and drilled parts. It does not implement arbitrary sculpting, text, fillets, advanced CAD constraints or STEP export. Supported solid dimensions are 0.2–500 mm. Curved surfaces are tessellated.
+| Format | Contents |
+| --- | --- |
+| 3MF | Millimeter geometry and one blue display material matching the original-model viewer |
+| STL | Binary triangle geometry; coordinates use millimeters, with Z up |
+| Form JSON | Editable model operations for re-import and further editing |
 
-Automated integration tests use a real SQLite database with mocked OpenAI responses. They cover ownership, persistence, conversation reuse, idempotency, branching, cancellation, expired locks, and invalid geometry. Live model quality and account access are separate from those tests. Geometry validity is not a printability, fit or strength guarantee; inspect in a slicer and verify dimensions.
+The in-app handoff guide covers Bambu Studio, PrusaSlicer, OrcaSlicer, Creality
+Print, and a Cura-compatible route. Actual import testing across those slicers is
+still pending. Exports do not contain printer profiles, supports, G-code, or
+multi-material assignments. Form does not launch a slicer or connect to a printer.
 
-There is no branch merging, shared editing, project deletion, automatic conversation compaction, or local-to-hosted data sync yet. Long conversations remain subject to the model’s context and token limits. A new or recovered conversation is seeded with project requirements, revision summaries, the exact selected model, explicitly referenced versions, and the latest 40 saved messages. Failed or cancelled requests discard their conversation association so the next turn reconstructs context from committed state. This does not delete the abandoned conversation from OpenAI.
+**Viewer controls:** drag to orbit, scroll to zoom, and right-drag to pan. Touch
+supports orbit and pinch zoom. The toolbar includes fit, grid, wireframe, and
+fullscreen controls. **Focus model** hides comparison and history bars;
+**Show controls** restores them. In chat, Enter sends and Shift+Enter adds a line.
 
-The database is the authoritative model archive; an OpenAI Conversation is a context aid. Durable conversations store project context at OpenAI. See [OpenAI conversation-state documentation](https://developers.openai.com/api/docs/guides/conversation-state). Local data survives app restarts while `.wrangler/state` remains intact. Back up that directory with the server stopped before moving or cleaning the project.
+## Current limits
 
-## Architecture
+- **Bounded geometry:** up to 48 sequential additions/subtractions using boxes,
+  elliptical cylinders, and ellipsoids. Feature dimensions range from 0.2–500 mm;
+  curved surfaces are tessellated.
+- **No arbitrary sculpting or advanced CAD features:** fillets, text, STEP export,
+  and general constraint solving are not implemented.
+- **No per-part colors yet:** the original model uses one blue material. An API
+  request such as “make the divider white” cannot currently change its color.
+- **No STL/3MF mesh import:** the editable import route accepts Form JSON only.
+- **No branch merging, shared editing, or project deletion:** archiving is
+  available. Local and hosted databases do not synchronize automatically.
+- **Comparisons measure geometry:** moving a part appears as removal and addition.
+  Feature highlights outline source primitives, not exact ownership of every
+  Boolean surface. Legacy feature matching can be ambiguous after renames.
+- **Printing still needs verification:** valid geometry does not establish
+  printability, fit, or strength. Physical test prints remain part of the roadmap.
 
-React/Vinext + Sites (Cloudflare Worker); Three.js viewer; JSCAD solid modeling in a Web Worker; OpenAI Responses API with strict JSON schema; no AI-generated JavaScript is executed.
+## Data, conversations, and sharing
 
-- `app/page.tsx`: signed-in workshop entry
-- `components/workshop.tsx`: two-panel UI and geometry comparison
-- `components/project-controls.tsx`: project details and branch controls
-- `lib/projects/`: client state, owned database queries, turn locking, and durable conversation orchestration
-- `db/schema.ts` and `drizzle/`: schema and generated migrations
-- `app/api/chat/route.ts`: server API proxy, input validation and request timeout
-- `lib/ai.ts`: provider adapter and structured response handling
-- `lib/cad/`: bounded solid schema, geometry compilation, worker and STL export
-- `components/model-viewer.tsx`: viewer controls and rendering
+Projects, model snapshots, proposals, messages, and branch conversation identifiers
+are stored in D1. The local database lives under `.wrangler/state/v3/d1`; hosted
+Sites use a separate managed database. Back up local state with the server stopped
+before moving or cleaning the project. Browser preferences are not the model archive.
+
+Each branch creates an OpenAI Conversation on its first AI request. Project
+requirements, selected model data, and relevant history provide context for edits.
+Automatic conversation compaction is not implemented. Failed or cancelled requests
+clear the conversation association so the next request can reconstruct context;
+this does not delete the abandoned conversation at OpenAI.
+
+Share links expose only a fixed accepted model, not private chat or project notes.
+Owners can revoke links and disable the STL download option, but displayed geometry
+is still delivered to the recipient's browser. Hosted Sites access policies must
+also allow the intended recipient; creating a link does not change that policy.
+
+## Development and verification
 
 ```sh
 pnpm test
@@ -75,55 +171,62 @@ pnpm typecheck
 pnpm build
 ```
 
-The automated tests use injected local provider responses and an isolated SQLite
-database. They require no API key and make no paid API calls. The offline
-conversation scenario exercises proposal generation, refinement with a reused
-conversation ID, reload, three-way geometry comparison, acceptance, STL output,
-and rebuilding context from the accepted model. Run just this scenario with:
+The latest recorded suite has **44 passing offline tests**, covering geometry,
+project ownership and persistence, proposals, branching, locks, sharing, imports,
+exports, and camera projection behavior. Tests use injected provider responses and
+isolated SQLite databases: **no API key or paid AI calls are required**.
+
+Run the offline conversation scenario alone:
 
 ```sh
 node --import tsx --test --test-name-pattern='offline conversation' tests/projects.test.ts
 ```
 
-This checks application integration with deterministic model responses; it does
-not measure the real model's design quality or verify provider credentials and
-availability. The interactive app continues to use the configured real provider.
+Offline tests check application behavior, not the real model's design quality.
+Browser checks and remaining release checks are recorded in [TODO.md](TODO.md).
 
-## Database changes
+### Architecture
 
-### 3MF and slicer handoff
+React/Vinext and Sites on Cloudflare Workers, D1 persistence, a Three.js viewer,
+JSCAD solid modeling, and the OpenAI Responses API with structured model data.
+Browser geometry compilation runs in a Web Worker; server validation also builds
+geometry. **AI-generated JavaScript is not executed.**
 
-Choose **3MF (mm + color)** beside the viewer's export button, or choose STL as a
-fallback. Exports use the selected accepted revision even while reviewing a
-proposal. **Open in your slicer** in the chat panel explains model import and
-the remaining slicing steps. These are model files, not ready-to-print jobs.
+| Location | Responsibility |
+| --- | --- |
+| `components/workshop.tsx` | Chat, proposal review, comparison, and tool panels |
+| `components/model-viewer.tsx` | Rendering, focus/fullscreen integration, and camera controls |
+| `components/project-sidebar.tsx` | Project navigation, search, import, and archiving |
+| `lib/projects/` | Persistence, ownership, proposals, locks, sharing, and conversation orchestration |
+| `lib/cad/` | Model schema, geometry, change explanations, and file exports |
+| `lib/ai.ts` | Provider requests and structured response handling |
+| `db/schema.ts` and `drizzle/` | Database schema and migrations |
 
-The exporter follows the [3MF Core specification](https://github.com/3MFConsortium/spec_core/blob/master/3MF%20Core%20Specification.md).
-The archive contains millimeter geometry and one display material matching the
-viewer. Printer settings, supports, G-code and multi-material assignments are
-configured in the slicer. Use your printer's normal slicer send/export workflow.
-No direct printer connection or application launch is performed.
+After schema changes, run `pnpm db:generate`, inspect the SQL, and apply it locally
+with `pnpm db:migrate`. Keep previously applied migrations immutable.
 
-Reference import documentation: [Bambu Studio](https://github.com/bambulab/BambuStudio/wiki),
-[PrusaSlicer](https://help.prusa3d.com/article/supported-file-formats_1772),
-[OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer/wiki/import_export),
-[Creality Print](https://wiki.creality.com/en/software/6-0/Quick-Start), and
-[Cura](https://ultimaker.com/learn/ultimaker-cura-5-7-stable-release-notes/).
-Actual import testing across these applications remains pending.
+### Hosting status
 
-Use the workspace toolbar for **Edit dimensions**, **Dimension locks**,
-**Export & print**, and **Share revision**. Export & print groups STL, 3MF and
-editable JSON downloads with slicer instructions. Project details and branches
-are in the header; search, import and archiving are in the project sidebar.
-Locks apply to the whole project across branches. Share links are fixed
-accepted-revision snapshots; owners can revoke them and disable STL downloads.
-Shared geometry is necessarily sent to the viewer, so disabled downloads are not
-copy protection. Hosted Sites access policies must also permit the intended
-recipient; this feature does not change the site's deployment access policy.
+GitHub source and the hosted preview may differ. Configure hosted secrets separately;
+local `.env` values and local database records are not uploaded automatically.
+Hosted migrations and deployment remain pending for the current implementation.
 
-Use **Import model JSON** in the sidebar to start a project from a local Form model
-(maximum 1 MB). Use **Download editable model JSON** to export an accepted revision
-for this purpose. The file must contain the supported model name and primitive
-operations; arbitrary CAD scripts, STL and 3MF files are not accepted yet.
+A standalone public deployment needs verified authentication in place of the
+Sites-specific identity boundary, plus usage limits for paid AI requests. Never
+include `.env` or `.wrangler/state` in deployment archives.
 
-After changing `db/schema.ts`, run `pnpm db:generate`, inspect the generated SQL, then run `pnpm db:migrate` locally. Keep previously applied migrations immutable. The Sites build copies migrations to `dist/.openai/drizzle` for a future hosted deployment. Never include `.wrangler/state` or `.env` in deployment archives.
+## Help shape the project
+
+Try a small functional part and [open an issue](https://github.com/dsf0809/3d-version-control/issues)
+with what you expected, what happened, reproduction steps, and your browser.
+For printing feedback, include your slicer, printer, and measured result. Screenshots
+or a non-sensitive model example help; do not include API keys or private project data.
+
+Useful next contributions include slicer validation, onboarding improvements,
+per-part color support, and broader browser testing. Check [TODO.md](TODO.md) before
+starting substantial work and open an issue to discuss the scope.
+
+## License
+
+Licensed under the [MIT License](LICENSE). Third-party dependencies retain their
+own licenses.

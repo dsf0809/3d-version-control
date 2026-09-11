@@ -231,3 +231,20 @@ This checkpoint records a local commit only; push and deployment remain pending.
 
 Pushed implementation commit b3d6193 to origin/main successfully. This follow-up
 records the completed push; hosted migrations and deployment remain pending.
+
+### 2026-09-10 — README launch preparation
+
+Reorganized README around inspectable AI changes, the no-key saved demo, setup,
+review/export workflow, current features and explicit limitations. Added focus/
+fullscreen controls, per-part color limitation, feedback guidance, architecture,
+validation and deployment status. Corrected stale comparison and tool locations.
+No demo media or license was invented. Verified README links to local files, package-script names, balanced code fences,
+license-file absence and diff whitespace. No runtime changes or AI calls; no
+application tests rerun for this documentation-only update. Not committed or pushed.
+
+### 2026-09-10 — MIT license and documentation commit
+
+Added the standard MIT license with copyright 2026 dusifei, linked it from the
+README and declared MIT in package metadata. Included the README launch rewrite
+in this local commit. Verified local documentation links, package JSON and diff
+whitespace. No runtime changes, AI calls or deployment; this commit is not pushed.
