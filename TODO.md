@@ -248,3 +248,8 @@ Added the standard MIT license with copyright 2026 dusifei, linked it from the
 README and declared MIT in package metadata. Included the README launch rewrite
 in this local commit. Verified local documentation links, package JSON and diff
 whitespace. No runtime changes, AI calls or deployment; this commit is not pushed.
+
+### 2026-09-10 — License and README published to GitHub
+
+Successfully pushed c5a981b (MIT license and README update) to origin/main.
+This tracker update accompanies the push. Hosted deployment remains pending.
