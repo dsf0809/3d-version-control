@@ -1,23 +1,51 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { resizeCamera, fitCameraDistance, anchorCamera } from '@/lib/viewer-camera';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Compiled, Comparison } from '@/lib/cad/compile';
-import { Focus, Grid2X2, Box } from 'lucide-react';
+import { Focus, Grid2X2, Box, Maximize, Minimize } from 'lucide-react';
+import type { FeatureChange } from '@/lib/cad/changes';
 export default function ModelViewer({
   geometry,
   comparison,
+  highlight,
+  focusMode = false,
 }: {
   geometry: Compiled | null;
   comparison: Comparison | null;
+  highlight?: FeatureChange | null;
+  focusMode?: boolean;
 }) {
   const mount = useRef<HTMLDivElement>(null);
+  const focusRef = useRef(focusMode);
+  focusRef.current = focusMode;
   const api = useRef<{
     set: (g: Compiled, c: Comparison | null) => void;
     fit: () => void;
     grid: () => void;
     wire: () => void;
+    highlight: (change: FeatureChange | null) => void;
   } | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenSupported, setFullscreenSupported] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState('');
+  const fullscreenTarget = () => mount.current?.closest<HTMLElement>('.model-stage, .viewer-panel');
+  useEffect(() => {
+    setFullscreenSupported(!!document.fullscreenEnabled);
+    const changed = () => setFullscreen(document.fullscreenElement === fullscreenTarget());
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  const toggleFullscreen = async () => {
+    setFullscreenError('');
+    try {
+      if (document.fullscreenElement === fullscreenTarget()) await document.exitFullscreen();
+      else await fullscreenTarget()?.requestFullscreen();
+    } catch {
+      setFullscreenError('Fullscreen could not open. Try opening the app in a separate browser window.');
+    }
+  };
   const [error, setError] = useState('');
   const [grid, setGrid] = useState(true);
   const [wire, setWire] = useState(false);
@@ -90,6 +118,8 @@ export default function ModelViewer({
     scene.add(mesh);
     const diffGroup = new THREE.Group();
     scene.add(diffGroup);
+    const selection = new THREE.Group();
+    scene.add(selection);
     const clearDiff = () => {
       for (const child of [...diffGroup.children]) {
         const m = child as THREE.Mesh;
@@ -101,9 +131,7 @@ export default function ModelViewer({
     let radius = 85;
     const center = new THREE.Vector3(0, 0, 13);
     const fit = () => {
-      const aspect = Math.min(camera.aspect, 1);
-      const distance =
-        ((radius / Math.sin(THREE.MathUtils.degToRad(18))) * 1.05) / aspect;
+      const distance = fitCameraDistance(camera, radius);
       camera.position
         .copy(center)
         .add(
@@ -113,6 +141,43 @@ export default function ModelViewer({
       controls.update();
     };
     api.current = {
+      highlight: (change) => {
+        for (const child of [...selection.children]) {
+          const line = child as THREE.LineSegments;
+          line.geometry.dispose();
+          (line.material as THREE.Material).dispose();
+          selection.remove(line);
+        }
+        if (!change) return;
+        for (const [feature, color] of [
+          [change.before, 0xe55a65],
+          [change.after, 0x28b578],
+        ] as const) {
+          if (!feature) continue;
+          const box = new THREE.BoxGeometry(...feature.size);
+          const line = new THREE.LineSegments(
+            new THREE.EdgesGeometry(box),
+            new THREE.LineBasicMaterial({
+              color,
+              depthTest: false,
+              transparent: true,
+              opacity: 1,
+            }),
+          );
+          box.dispose();
+          line.position.set(...feature.position);
+          line.rotation.set(
+            ...(feature.rotation.map(THREE.MathUtils.degToRad) as [
+              number,
+              number,
+              number,
+            ]),
+            'ZYX',
+          );
+          line.renderOrder = 10;
+          selection.add(line);
+        }
+      },
       set: (g, c) => {
         clearDiff();
         mesh.visible = !c;
@@ -177,13 +242,25 @@ export default function ModelViewer({
         });
       },
     };
+    let viewportHeight = 0;
+    let normalCenter: { x: number; y: number } | null = null;
     const resize = () => {
       const w = host.clientWidth,
         h = host.clientHeight;
       if (!w || !h) return;
       renderer.setSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      resizeCamera(camera, w, h, viewportHeight);
+      viewportHeight = h;
+      const bounds = host.getBoundingClientRect();
+      const panel = host.closest('.viewer-panel')?.getBoundingClientRect() ?? bounds;
+      const center = { x: bounds.left - panel.left + w / 2, y: bounds.top - panel.top + h / 2 };
+      const isFullscreen = document.fullscreenElement === host.closest('.model-stage, .viewer-panel');
+      if (isFullscreen) {
+        anchorCamera(camera, w, h, 0, 0);
+      } else {
+        if (!focusRef.current || !normalCenter) normalCenter = center;
+        anchorCamera(camera, w, h, center.x - normalCenter.x, center.y - normalCenter.y);
+      }
     };
     const observer = new ResizeObserver(resize);
     observer.observe(host);
@@ -222,6 +299,9 @@ export default function ModelViewer({
   useEffect(() => {
     if (geometry) api.current?.set(geometry, comparison);
   }, [geometry, comparison]);
+  useEffect(() => {
+    api.current?.highlight(highlight ?? null);
+  }, [highlight]);
   return (
     <>
       <div ref={mount} className="view-canvas" />
@@ -230,7 +310,18 @@ export default function ModelViewer({
           {error}
         </div>
       )}
+      {fullscreenError && <div className="fullscreen-notice" role="status">{fullscreenError}</div>}
       <div className="view-tools">
+        <button
+          className={`quiet tool ${fullscreen ? 'active' : ''}`}
+          title={!fullscreenSupported ? 'Fullscreen is not supported in this browser' : fullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}
+          aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          aria-pressed={fullscreen}
+          disabled={!fullscreenSupported}
+          onClick={() => void toggleFullscreen()}
+        >
+          {fullscreen ? <Minimize size={17} /> : <Maximize size={17} />}
+        </button>
         <button
           className="quiet tool"
           title="Fit model"

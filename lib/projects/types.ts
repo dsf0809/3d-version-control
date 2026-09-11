@@ -7,6 +7,7 @@ export type SavedRevision = Revision & {
   summary?: { added: number; removed: number; unchanged: number };
 };
 export type SavedMessage = {
+  proposalId?: string | null;
   turnId: string | null;
   id: string;
   role: 'user' | 'assistant';
@@ -23,6 +24,7 @@ export type Branch = {
   conversationReady: boolean;
 };
 export type ProjectSummary = {
+  archived: boolean;
   id: string;
   name: string;
   brief: string;
@@ -32,11 +34,14 @@ export type ProjectSummary = {
   updatedAt: string;
 };
 export type ProjectDetail = ProjectSummary & {
+  dimensionLocks: import('./locks').DimensionLock[];
+  proposals: Proposal[];
   branches: Branch[];
   revisions: SavedRevision[];
   messages: SavedMessage[];
 };
 export type TurnInput = {
+  proposalId?: string | null;
   projectId: string;
   branchId: string;
   revisionId: string;
@@ -44,10 +49,24 @@ export type TurnInput = {
   message: string;
 };
 export type TurnResult = {
+  proposalId?: string;
   message: string;
   model: Model | null;
   revisionId: string;
   branchId: string;
+};
+export type Proposal = {
+  id: string;
+  branchId: string;
+  baseRevisionId: string;
+  parentProposalId: string | null;
+  status: 'pending' | 'accepted' | 'discarded' | 'superseded';
+  model: Model;
+  prompt: string;
+  answer: string;
+  createdAt: string;
+  acceptedRevisionId: string | null;
+  summary: { added: number; removed: number; unchanged: number };
 };
 export function lineage(revisions: SavedRevision[], headId: string) {
   const byId = new Map(revisions.map((r) => [r.id, r]));

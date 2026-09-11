@@ -61,12 +61,11 @@ export default function ProjectControls({
           disabled={busy || workspace.loading}
           onClick={() => {
             setOpen(true);
-            setEditing(null);
-            void workspace.refreshList().catch(() => {});
+            form(project ? 'edit' : 'new');
           }}
         >
           <FolderOpen size={16} />
-          {project?.name || 'Projects'}
+          {project ? 'Project details' : 'New project'}
         </button>
         {project && (
           <Select
@@ -178,9 +177,9 @@ export default function ProjectControls({
                   className="quiet"
                   disabled={saving}
                   type="button"
-                  onClick={() => setEditing(null)}
+                  onClick={() => setOpen(false)}
                 >
-                  Back
+                  Cancel
                 </button>
                 <button
                   className="quiet primary"

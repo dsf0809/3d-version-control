@@ -37,6 +37,7 @@ export function useProjects() {
   const [project, setProject] = useState<ProjectDetail | null>(null),
     [projects, setProjects] = useState<ProjectSummary[]>([]),
     [geometry, setGeometry] = useState<Compiled | null>(null),
+    [proposalGeometry, setProposalGeometry] = useState<Compiled | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [warning, setWarning] = useState('');
@@ -49,10 +50,17 @@ export function useProjects() {
   const apply = async (detail: ProjectDetail, signal?: AbortSignal) => {
     const r = detail.revisions.find((r) => r.id === detail.selectedRevisionId);
     if (!r) throw new Error('The saved revision could not be found.');
-    const g = await compileModel(r.model, signal);
+    const pending = detail.proposals.find(
+      (p) => p.status === 'pending' && p.baseRevisionId === r.id,
+    );
+    const [g, pg] = await Promise.all([
+      compileModel(r.model, signal),
+      pending ? compileModel(pending.model, signal) : Promise.resolve(null),
+    ]);
     signal?.throwIfAborted();
     setProject(detail);
     setGeometry(g);
+    setProposalGeometry(pg);
     try {
       localStorage.setItem('form-active-project', detail.id);
     } catch {
@@ -182,6 +190,7 @@ export function useProjects() {
     }
   };
   const create = async (data: {
+    startingModel?: unknown;
     name: string;
     brief: string;
     requirements: string;
@@ -210,10 +219,15 @@ export function useProjects() {
     (r) => r.id === project.selectedRevisionId,
   );
   const parent = project?.revisions.find((r) => r.id === revision?.parentId);
+  const proposal = project?.proposals.find(
+    (p) => p.status === 'pending' && p.baseRevisionId === revision?.id,
+  );
   return {
     project,
     projects,
     geometry,
+    proposalGeometry,
+    proposal,
     setGeometry,
     loading,
     error,
@@ -275,6 +289,8 @@ export function useProjectChat(workspace: ReturnType<typeof useProjects>) {
         retry.current.projectId === p.id &&
         retry.current.branchId === p.activeBranchId &&
         retry.current.revisionId === p.selectedRevisionId &&
+        (retry.current.proposalId ?? null) ===
+          (p.proposals.find((q) => q.status === 'pending')?.id ?? null) &&
         retry.current.message === text
           ? retry.current
           : {
@@ -283,6 +299,8 @@ export function useProjectChat(workspace: ReturnType<typeof useProjects>) {
               revisionId: p.selectedRevisionId,
               message: text,
               requestId: crypto.randomUUID(),
+              proposalId:
+                p.proposals.find((q) => q.status === 'pending')?.id ?? null,
             };
       retry.current = input;
       setPhase('Designing your part');

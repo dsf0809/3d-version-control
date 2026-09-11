@@ -3,6 +3,8 @@ import { buildGeometry, compareGeometry } from '../cad/geometry';
 import { HttpError } from './http';
 import { ProjectStore, validateTurn } from './store';
 import { lineage, type TurnResult } from './types';
+import { saveProposal, listProposals } from './proposals';
+import { validateGeneratedModel } from '../cad/model';
 export async function createConversation(
   seed: string,
   key: string,
@@ -56,6 +58,11 @@ export async function runTurn(
     signal.throwIfAborted();
     const detail = await store.detail(owner, input.projectId);
     const ancestry = lineage(detail.revisions, input.revisionId);
+    const branchProposals = await listProposals(store, input.branchId);
+    const pending = branchProposals.find(
+      (p) => p.id === input.proposalId && p.status === 'pending',
+    );
+    const editingModel = pending?.model ?? started.revision!.model;
     const referenced = new Set(
       [...input.message.matchAll(/\bv(\d+)\b/gi)].map((m) => Number(m[1])),
     );
@@ -68,6 +75,16 @@ export async function runTurn(
       branch: started.branch!.name,
       selectedRevision: `V${started.revision!.ordinal}`,
       selectedModel: started.revision!.model,
+      dimensionLocks: detail.dimensionLocks,
+      editingProposal: pending
+        ? { id: pending.id, status: pending.status, model: pending.model }
+        : null,
+      proposalDecisions: branchProposals.slice(-20).map((p) => ({
+        id: p.id,
+        status: p.status,
+        prompt: p.prompt,
+        acceptedRevisionId: p.acceptedRevisionId,
+      })),
       revisionHistory: ancestry.map((r) => ({
         version: `V${r.ordinal}`,
         name: r.model.name,
@@ -99,7 +116,7 @@ export async function runTurn(
     const reply = await generateReply(
       {
         messages: [{ role: 'user', content: input.message }],
-        model: started.revision!.model,
+        model: editingModel,
       },
       key,
       modelName,
@@ -110,6 +127,7 @@ export async function runTurn(
     signal.throwIfAborted();
     let volumeSummary = null;
     if (reply.model) {
+      validateGeneratedModel(reply.model, editingModel);
       buildGeometry(reply.model);
       volumeSummary = compareGeometry(
         started.revision!.model,
@@ -119,10 +137,12 @@ export async function runTurn(
     signal.throwIfAborted();
     const result: TurnResult = {
       ...reply,
-      revisionId: reply.model ? crypto.randomUUID() : input.revisionId,
+      revisionId: input.revisionId,
+      ...(reply.model ? { proposalId: crypto.randomUUID() } : {}),
       branchId: input.branchId,
     };
-    await store.commit(input, result, volumeSummary);
+    if (reply.model) await saveProposal(store, input, result, volumeSummary);
+    else await store.commit(input, result, volumeSummary);
     return result;
   } catch (error) {
     const message =

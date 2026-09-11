@@ -17,6 +17,8 @@ export const projects = sqliteTable(
     activeBranchId: text('active_branch_id').notNull(),
     selectedRevisionId: text('selected_revision_id').notNull(),
     importKey: text('import_key'),
+    archived: integer('archived').notNull().default(0),
+    dimensionLocks: text('dimension_locks').notNull().default('[]'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -25,6 +27,17 @@ export const projects = sqliteTable(
     uniqueIndex('projects_owner_import').on(t.ownerId, t.importKey),
   ],
 );
+export const shares = sqliteTable('shares', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id')
+    .notNull()
+    .references(() => projects.id),
+  revisionId: text('revision_id').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  allowExport: integer('allow_export').notNull().default(0),
+  revoked: integer('revoked').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+});
 export const branches = sqliteTable(
   'branches',
   {
@@ -74,6 +87,7 @@ export const messages = sqliteTable(
       .notNull()
       .references(() => branches.id),
     turnId: text('turn_id'),
+    proposalId: text('proposal_id'),
     ordinal: integer('ordinal').notNull(),
     role: text('role').notNull(),
     content: text('content').notNull(),
@@ -94,6 +108,7 @@ export const turns = sqliteTable(
       .notNull()
       .references(() => branches.id),
     baseRevisionId: text('base_revision_id').notNull(),
+    proposalId: text('proposal_id'),
     prompt: text('prompt').notNull(),
     status: text('status').notNull(),
     resultJson: text('result_json'),
@@ -101,4 +116,26 @@ export const turns = sqliteTable(
     createdAt: text('created_at').notNull(),
   },
   (t) => [index('turns_branch').on(t.branchId)],
+);
+export const proposals = sqliteTable(
+  'proposals',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id),
+    branchId: text('branch_id')
+      .notNull()
+      .references(() => branches.id),
+    baseRevisionId: text('base_revision_id').notNull(),
+    parentProposalId: text('parent_proposal_id'),
+    status: text('status').notNull(),
+    modelJson: text('model_json').notNull(),
+    prompt: text('prompt').notNull(),
+    answer: text('answer').notNull(),
+    summaryJson: text('summary_json').notNull(),
+    acceptedRevisionId: text('accepted_revision_id'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('proposals_branch_status').on(t.branchId, t.status)],
 );

@@ -1,4 +1,7 @@
-import { sample, validateModel } from '../cad/model';
+import { sample, validateModel, upgradeModel } from '../cad/model';
+import { listProposals } from './proposals';
+import { getLocks } from './locks';
+import { buildGeometry } from '../cad/geometry';
 import { demoProject, demoHistory } from './demo';
 import { parseHistory, type Revision } from '../cad/history';
 import { HttpError } from './http';
@@ -34,6 +37,7 @@ type Row = {
   summary_json: string | null;
   created_at: string;
   updated_at: string;
+  archived: number;
   role: 'user' | 'assistant';
   content: string;
   updated: number;
@@ -43,6 +47,7 @@ type Row = {
   status: string;
   result_json: string;
   cutoff: number | null;
+  proposal_id: string | null;
 };
 const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -72,11 +77,17 @@ export function validateTurn(input: unknown): TurnInput {
     if (typeof b[k] !== 'string' || !/^[\w-]{1,100}$/.test(b[k]))
       throw new HttpError(400, 'Invalid project or request identifier.');
   const message = field(b.message, 'Message', 8000);
+  if (
+    b.proposalId != null &&
+    (typeof b.proposalId !== 'string' || !/^[\w-]{1,100}$/.test(b.proposalId))
+  )
+    throw new HttpError(400, 'Invalid proposal identifier.');
   if (!message) throw new HttpError(400, 'Enter a message.');
   return { ...b, message } as TurnInput;
 }
 function summary(r: Row): ProjectSummary {
   return {
+    archived: !!r.archived,
     id: r.id,
     name: r.name,
     brief: r.brief,
@@ -92,7 +103,7 @@ function revision(r: Row): SavedRevision {
     parentId: r.parent_id,
     branchId: r.branch_id,
     ordinal: r.ordinal,
-    model: validateModel(JSON.parse(r.model_json)),
+    model: upgradeModel(JSON.parse(r.model_json)),
     prompt: r.prompt,
     answer: r.answer,
     createdAt: r.created_at,
@@ -136,8 +147,22 @@ export class ProjectStore {
         p.active_branch_id,
       ),
     ]);
+    // Persist an idempotent data upgrade while preserving the original geometry.
+    const upgrades = rs.results
+      .filter((r) => JSON.parse(r.model_json).schemaVersion !== 2)
+      .map((r) =>
+        this.stmt(
+          'UPDATE revisions SET model_json=? WHERE id=? AND model_json=?',
+          JSON.stringify(upgradeModel(JSON.parse(r.model_json))),
+          r.id,
+          r.model_json,
+        ),
+      );
+    if (upgrades.length) await this.db.batch(upgrades);
     return {
       ...summary(p),
+      proposals: await listProposals(this, p.active_branch_id),
+      dimensionLocks: await getLocks(this, projectId),
       branches: bs.results.map((b) => ({
         id: b.id,
         name: b.name,
@@ -156,6 +181,7 @@ export class ProjectStore {
             updated: !!m.updated,
             revisionId: m.revision_id,
             turnId: m.turn_id,
+            proposalId: m.proposal_id,
           }) as SavedMessage,
       ),
     };
@@ -177,6 +203,24 @@ export class ProjectStore {
     source: 'browser' | 'demo' = 'browser',
   ) {
     const data = validateProject(input);
+    const starting = (input as { startingModel?: unknown }).startingModel;
+    let startingModel;
+    if (starting !== undefined) {
+      try {
+        startingModel = upgradeModel(starting);
+        buildGeometry(startingModel);
+      } catch {
+        throw new HttpError(
+          400,
+          'Import a valid Form model JSON containing supported solid features.',
+        );
+      }
+      if (legacy)
+        throw new HttpError(
+          400,
+          'Choose either a starting model or revision history.',
+        );
+    }
     if (importKey) {
       const old = await this.stmt(
         'SELECT id FROM projects WHERE owner_id=? AND import_key=?',
@@ -194,8 +238,8 @@ export class ProjectStore {
               id: 'initial',
               parentId: null,
               createdAt: '',
-              prompt: 'Sample tray',
-              model: sample,
+              prompt: startingModel ? 'Imported local model' : 'Sample tray',
+              model: startingModel ?? sample,
             },
           ];
     } catch {
@@ -298,7 +342,7 @@ export class ProjectStore {
           branchFor.get(r.id),
           r.parentId ? map.get(r.parentId) : null,
           i,
-          JSON.stringify(validateModel(r.model)),
+          JSON.stringify(upgradeModel(r.model)),
           r.prompt,
           source === 'demo'
             ? r.prompt
@@ -322,6 +366,19 @@ export class ProjectStore {
       }
       throw e;
     }
+    return this.detail(owner, projectId);
+  }
+  async archive(owner: string, projectId: string, archived: unknown) {
+    await this.own(owner, projectId);
+    if (typeof archived !== 'boolean')
+      throw new HttpError(400, 'Choose archive or restore.');
+    await this.stmt(
+      'UPDATE projects SET archived=?,updated_at=? WHERE id=? AND owner_id=?',
+      Number(archived),
+      new Date().toISOString(),
+      projectId,
+      owner,
+    ).run();
     return this.detail(owner, projectId);
   }
   async update(owner: string, projectId: string, input: unknown) {
@@ -446,6 +503,7 @@ export class ProjectStore {
         old.project_id !== input.projectId ||
         old.branch_id !== input.branchId ||
         old.base_revision_id !== input.revisionId ||
+        (old.proposal_id ?? null) !== (input.proposalId ?? null) ||
         old.prompt !== input.message
       )
         throw new HttpError(409, 'This request identifier was already used.');
@@ -477,18 +535,27 @@ export class ProjectStore {
         'This branch changed or has a request in progress. Reload the project before continuing.',
       );
     try {
+      const pending = (await listProposals(this, input.branchId)).find(
+        (p) => p.status === 'pending',
+      );
+      if ((pending?.id ?? null) !== (input.proposalId ?? null))
+        throw new HttpError(
+          409,
+          'The proposal changed. Reload and review or refine the current proposal.',
+        );
       await this.db.batch([
         this.stmt(
           "UPDATE turns SET status='failed',error='The previous request expired.' WHERE branch_id=? AND status='pending'",
           input.branchId,
         ),
         this.stmt(
-          "INSERT INTO turns (id,project_id,branch_id,base_revision_id,prompt,status,created_at) VALUES (?,?,?,?,?,'pending',?)",
+          "INSERT INTO turns (id,project_id,branch_id,base_revision_id,prompt,proposal_id,status,created_at) VALUES (?,?,?,?,?,?,'pending',?)",
           input.requestId,
           input.projectId,
           input.branchId,
           input.revisionId,
           input.message,
+          input.proposalId ?? null,
           now(),
         ),
       ]);
@@ -633,12 +700,13 @@ export class ProjectStore {
     if (!branch) throw new HttpError(404, 'Branch not found.');
     // Record cancellation even if the generation request has not reached begin yet.
     await this.stmt(
-      "INSERT INTO turns (id,project_id,branch_id,base_revision_id,prompt,status,created_at) VALUES (?,?,?,?,?,'cancelled',?) ON CONFLICT(id) DO NOTHING",
+      "INSERT INTO turns (id,project_id,branch_id,base_revision_id,prompt,proposal_id,status,created_at) VALUES (?,?,?,?,?,?,'cancelled',?) ON CONFLICT(id) DO NOTHING",
       input.requestId,
       input.projectId,
       input.branchId,
       input.revisionId,
       input.message,
+      input.proposalId ?? null,
       now(),
     ).run();
     const t = await this.stmt(
@@ -650,6 +718,7 @@ export class ProjectStore {
       !t ||
       t.branch_id !== input.branchId ||
       t.base_revision_id !== input.revisionId ||
+      (t.proposal_id ?? null) !== (input.proposalId ?? null) ||
       t.prompt !== input.message
     )
       throw new HttpError(409, 'This request identifier was already used.');
