@@ -455,3 +455,5 @@ were not pushed or deployed. No secrets were changed and no AI calls were made.
 - [x] 82 offline tests passed, including account isolation, ciphertext storage, replacement and invalid encryption keys. No paid provider calls.
 - [x] Typecheck/build passed; migration applied locally in both checkouts. Private staging version 8 deployed successfully with encryption secret environment revision 1.
 - [ ] Hosted form and live AI verification remain pending; no real API key or paid test used. Local app may need restart to load its newly generated encryption secret.
+
+- [x] GitHub main updated with all pending API connection and export changes in de6d90d. Verified 82 offline tests and clean whitespace; private environment and local database remain excluded.
