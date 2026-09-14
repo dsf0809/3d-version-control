@@ -237,21 +237,25 @@ export default function Workshop() {
             )}
             {tool === 'export' && workspace.project && revision && (
               <>
+                {error && <p role="alert">{error}</p>}
                 <div className="export-options">
                   <a
                     href={`/api/projects/${workspace.project.id}/export?revision=${revision.id}&format=3mf`}
+                    onClick={(event) => { event.preventDefault(); void download('3mf'); }}
                   >
                     <strong>3MF · Print model</strong>
                     <span>Millimeter units and display color</span>
                   </a>
                   <a
                     href={`/api/projects/${workspace.project.id}/export?revision=${revision.id}&format=stl`}
+                    onClick={(event) => { event.preventDefault(); void download('stl'); }}
                   >
                     <strong>STL · Universal mesh</strong>
                     <span>Import as millimeters in your slicer</span>
                   </a>
                   <a
                     href={`/api/projects/${workspace.project.id}/export?revision=${revision.id}&format=json`}
+                    onClick={(event) => { event.preventDefault(); void download('json'); }}
                   >
                     <strong>JSON · Editable source</strong>
                     <span>Re-import from the project sidebar</span>

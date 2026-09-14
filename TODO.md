@@ -445,3 +445,13 @@ were not pushed or deployed. No secrets were changed and no AI calls were made.
 
 ## GitHub checkpoint
 - [x] Committed and pushed the architecture, collaboration and latest responsive viewer updates to GitHub main as ed2b13e. All 79 offline tests and whitespace checks passed; secret-pattern scan found no matches. No paid API calls or new site deployment in this step.
+
+## Export download fix
+- [x] Export loads the requested accepted revision directly, independent of navigation snapshot. Download buttons fetch and validate responses before saving; empty/error/login responses show an error instead of a file.
+- [x] Export fix: binary download regression tests, full suite and typecheck/build passed. Published staging version 7; real browser download retry remains pending.
+
+## Personal AI connection
+- [x] Masked API key input and Apply replace the setup guide. Authenticated, encrypted per-user storage; caller key resolved for background generation, never returned to browser. Separate server encryption secret configured.
+- [x] 82 offline tests passed, including account isolation, ciphertext storage, replacement and invalid encryption keys. No paid provider calls.
+- [x] Typecheck/build passed; migration applied locally in both checkouts. Private staging version 8 deployed successfully with encryption secret environment revision 1.
+- [ ] Hosted form and live AI verification remain pending; no real API key or paid test used. Local app may need restart to load its newly generated encryption secret.

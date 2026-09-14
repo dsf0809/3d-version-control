@@ -172,3 +172,5 @@ export const projectInvitations = sqliteTable('project_invitations', {
   usedBy: text('used_by'),
   createdAt: text('created_at').notNull(),
 });
+
+export const aiCredentials = sqliteTable('ai_credentials', { ownerId: text('owner_id').primaryKey(), encryptedKey: text('encrypted_key').notNull() });

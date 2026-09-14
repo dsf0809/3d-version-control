@@ -1,3 +1,4 @@
+import { getRevision } from '@/lib/projects/revisions';
 import { projectStore } from '@/lib/projects/db';
 import { ownerOf, failure, HttpError } from '@/lib/projects/http';
 import { buildGeometry, binarySTL } from '@/lib/cad/geometry';
@@ -7,14 +8,9 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const project = await projectStore().detail(
-      ownerOf(request),
-      (await context.params).id,
-    );
-    const revision = project.revisions.find(
-      (r) => r.id === new URL(request.url).searchParams.get('revision'),
-    );
-    if (!revision) throw new HttpError(404, 'Accepted revision not found.');
+    const revisionId = new URL(request.url).searchParams.get('revision');
+    if (!revisionId) throw new HttpError(400, 'Choose an accepted revision.');
+    const revision = await getRevision(projectStore(), ownerOf(request), (await context.params).id, revisionId);
     if (new URL(request.url).searchParams.get('format') === 'json')
       return new Response(JSON.stringify(revision.model, null, 2), {
         headers: {

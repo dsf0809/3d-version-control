@@ -1,17 +1,20 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {KeyRound,RefreshCw,ShieldCheck,ExternalLink} from 'lucide-react';
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from './ui/dialog';
-export default function AIConnection({open,onOpenChange,status,statusError,refresh}:{open:boolean;onOpenChange:(open:boolean)=>void;status:{configured:boolean;model:string}|null;statusError:boolean;refresh:()=>Promise<unknown>}){
- const [checking,setChecking]=useState(false),[local,setLocal]=useState(false);
- useEffect(()=>setLocal(['localhost','127.0.0.1','[::1]'].includes(location.hostname)),[]);
- const check=async()=>{setChecking(true);try{await refresh();}finally{setChecking(false);}};
- const title=checking?'Checking setup…':statusError?'Unable to check setup':!status?'Checking setup…':status.configured?'Key added — ready for a first test':'Your assistant needs a connection';
- return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="ai-connection-dialog sm:max-w-lg p-7 max-h-[85dvh] overflow-y-auto"><DialogTitle>Your AI assistant</DialogTitle><DialogDescription>Connect OpenAI to turn your ideas into model changes.</DialogDescription>
- <div className="ai-setup-status" role="status"><KeyRound size={22} aria-hidden="true"/><div><strong>{title}</strong><p>{statusError?'We could not read this website’s settings. Try checking again.':status?.configured?'The key is saved. A first message will confirm that OpenAI can answer.':'The person who manages this website needs to connect an OpenAI account once.'}</p></div></div>
- {status?.configured&&!statusError?<div className="ai-setup-copy"><h3>Try one small change</h3><p>Return to your design and ask for a small color or dimension change. Review the result before accepting it.</p><p className="ai-setup-note">This check reads the setup only. It does not test the key or send a paid AI request.</p></div>:<div className="ai-setup-copy"><h3>Invited to a project?</h3><p>Ask the website owner to connect AI. You do not need your own key or any coding knowledge.</p><p className="ai-setup-note">You can already edit dimensions and colors, compare versions, and export models.</p></div>}
- <details className="ai-owner-guide"><summary>I manage this website</summary><p>An API key is a private password that lets this website use your OpenAI account. Keep it in the website’s private settings.</p><ol><li><strong>Get your OpenAI key</strong><p>If you already have one, go to the next step.</p><a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">Open OpenAI keys <ExternalLink size={13} aria-hidden="true"/></a></li><li><strong>{local?'Set up this computer':'Add it to this website'}</strong><p>{local?'This local copy needs a one-time setup by the person running it. The technical instructions are below.':'Open this website in Sites, then its settings. Find “Environment variables” — these are the website’s private configuration settings.'}</p>{!local&&<p>Add a secret named <code>OPENAI_API_KEY</code> and paste your key as its value. Save the change. If Sites asks you to republish, do that before checking again.</p>}</li><li><strong>Check the setup</strong><p>Choose “Refresh status” below, then try one small request in your design chat.</p></li></ol><details className="ai-technical-guide"><summary>Technical setup details</summary>{local?<><p>In the project folder, open or create a text file named <code>.env</code>. Add:</p><pre>OPENAI_API_KEY=your-key-here{'\n'}OPENAI_MODEL=model-you-can-access</pre><p>Replace the placeholders, save the file, and restart the local website. Keep this file out of Git.</p></>:<p>Optionally add <code>OPENAI_MODEL</code> with a model your API account can access. Hosted settings are separate from files on your computer. Background generation also requires the <code>GENERATION_JOBS</code> worker binding.</p>}{status&&<p>Selected model: <code>{status.model}</code></p>}</details></details>
- <div className="ai-setup-privacy"><ShieldCheck size={18} aria-hidden="true"/><p>One connection serves this website. AI requests use the connected account’s API billing. Your chat and model details are sent to OpenAI when you request AI help.</p></div>
- <div className="ai-setup-actions"><button className="quiet" disabled={checking} onClick={()=>void check()}><RefreshCw size={15} aria-hidden="true"/>{checking?'Checking…':'Refresh status'}</button><button className="quiet primary" onClick={()=>onOpenChange(false)}>Return to my design</button></div>
- </DialogContent></Dialog>;
+export default function AIConnection({open,onOpenChange,status,refresh}:{open:boolean;onOpenChange:(open:boolean)=>void;status:{configured:boolean;model:string}|null;statusError:boolean;refresh:()=>Promise<unknown>}){
+ const [key,setKey]=useState(''),[saving,setSaving]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false);
+ useEffect(()=>{if(!open){setKey('');setError('');setSaved(false);}},[open]);
+ const apply=async(e:React.FormEvent)=>{e.preventDefault();setSaving(true);setError('');setSaved(false);try{
+  const response=await fetch('/api/ai-connection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+  const data=await response.json() as {error?:string};
+  if(!response.ok)throw new Error(data.error||'Could not save your key.');
+  setKey('');setSaved(true);await refresh();
+ }catch(e){setError(e instanceof Error?e.message:'Could not save your key.');}finally{setSaving(false);}};
+ return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="ai-connection-dialog sm:max-w-md p-6"><DialogTitle>AI connection</DialogTitle><DialogDescription>Add your OpenAI API key. It is stored encrypted for your account.</DialogDescription>
+ <form onSubmit={apply} className="grid gap-3"><label htmlFor="openai-key" className="text-sm font-medium">API key</label><input id="openai-key" type="password" autoComplete="off" spellCheck={false} autoCapitalize="none" value={key} onChange={e=>{setKey(e.target.value);setSaved(false);}} placeholder={status?.configured?'Paste a key to replace your connection':'sk-…'} disabled={saving} className="w-full min-w-0 rounded-lg border p-3"/>
+ {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}
+ {saved&&<p role="status" className="text-sm">Key saved. Your next AI request will use it.</p>}
+ <button className="quiet primary" type="submit" disabled={saving||!key.trim()}>{saving?'Applying…':'Apply'}</button>
+ <p className="text-xs text-slate-500">AI requests use your API billing. Applying saves the key without making a paid test call.</p>
+ </form></DialogContent></Dialog>;
 }

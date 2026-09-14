@@ -262,7 +262,7 @@ export default function WorkspaceModel({
         </select>
         <button
           className="quiet"
-          onClick={download}
+          onClick={() => void download()}
           disabled={!geometry || busy || loadingRevision}
         >
           <Download size={16} />{' '}

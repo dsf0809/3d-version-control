@@ -50,6 +50,13 @@
       "when": 1789260790928,
       "tag": "0006_parched_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789364936444,
+      "tag": "0007_blue_mastermind",
+      "breakpoints": true
     }
   ]
 }

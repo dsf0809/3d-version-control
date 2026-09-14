@@ -1808,3 +1808,25 @@ void test('revoking a contributor blocks queued work and prevents in-flight save
     sqlite.close();
   }
 });
+
+void test('personal AI keys are encrypted, isolated, replaceable and resolved for each owner', async () => {
+ const {saveCredential,readCredential,hasCredential}=await import('../lib/projects/ai-credentials');
+ const {store,sqlite}=fixture();
+ const secret='offline-vault-secret-32-characters-long';
+ const key='sk-offline-fixture-key-not-a-real-key';
+ try {
+  await assert.rejects(saveCredential(store,'alice',key,''));
+  await saveCredential(store,'alice',key,secret);
+  assert.equal(await hasCredential(store,'alice'),true);
+  assert.equal(await hasCredential(store,'bob'),false);
+  assert.equal(await readCredential(store,'alice',secret),key);
+  assert.equal(await readCredential(store,'bob',secret,'fallback'),'fallback');
+  const row=await store.stmt('SELECT encrypted_key FROM ai_credentials WHERE owner_id=?','alice').first<{encrypted_key:string}>();
+  assert.ok(!row!.encrypted_key.includes(key));
+  await assert.rejects(readCredential(store,'alice','wrong-secret-with-at-least-32-characters'));
+  await store.stmt('INSERT INTO ai_credentials(owner_id,encrypted_key) VALUES (?,?)','bob',row!.encrypted_key).run();
+  await assert.rejects(readCredential(store,'bob',secret));
+  await saveCredential(store,'alice',key+'-replacement',secret);
+  assert.equal(await readCredential(store,'alice',secret),key+'-replacement');
+ }finally{sqlite.close();}
+});

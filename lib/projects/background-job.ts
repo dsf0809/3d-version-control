@@ -22,7 +22,7 @@ export class BackgroundJob {
   constructor(
     private storage: JobStorage,
     private store: ProjectStore,
-    private key: string,
+    private key: string | ((owner: string) => Promise<string>),
     private model: string,
     private fetcher: typeof fetch = fetch,
   ) {}
@@ -102,7 +102,7 @@ export class BackgroundJob {
         this.store,
         j.owner,
         j.input,
-        this.key,
+        typeof this.key === 'string' ? this.key : await this.key(j.owner),
         this.model,
         AbortSignal.timeout(120000),
         this.fetcher,

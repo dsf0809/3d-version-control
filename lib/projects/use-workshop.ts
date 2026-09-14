@@ -1,3 +1,4 @@
+import { saveExport } from './download';
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { featureChanges } from '../cad/changes';
@@ -206,14 +207,11 @@ export function useWorkshop() {
     input.current?.focus();
   };
   const [exportFormat, setExportFormat] = useState<'stl' | '3mf'>('3mf');
-  const download = () => {
+  const download = async (format: 'stl' | '3mf' | 'json' = exportFormat) => {
     if (!workspace.project || !revision) return;
-    const a = document.createElement('a');
-    a.href = `/api/projects/${workspace.project.id}/export?revision=${revision.id}&format=${exportFormat}`;
-    a.download = `${acceptedModel.name}-v${revisionNumber}.${exportFormat}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    try {
+      await saveExport(`/api/projects/${workspace.project.id}/export?revision=${revision.id}&format=${format}`, `${acceptedModel.name}-v${revisionNumber}.${format}`);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Export failed.'); }
   };
   return {
     workspace,
