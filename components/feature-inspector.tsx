@@ -4,10 +4,12 @@ import type { Model } from '@/lib/cad/model';
 
 export default function FeatureInspector({
   model,
+  initialSelected,
   disabled,
   submit,
 }: {
   model: Model;
+  initialSelected?: string | null;
   disabled: boolean;
   submit: (
     featureId: string,
@@ -15,7 +17,9 @@ export default function FeatureInspector({
     position: number[],
   ) => Promise<void>;
 }) {
-  const [selected, setSelected] = useState(model.operations[0]?.id ?? '');
+  const [selected, setSelected] = useState(
+    initialSelected || model.operations[0]?.id || '',
+  );
   const feature =
     model.operations.find((o) => o.id === selected) ?? model.operations[0];
   return (

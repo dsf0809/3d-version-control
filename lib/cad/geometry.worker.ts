@@ -17,7 +17,7 @@ self.onmessage = (event) => {
       const result = buildGeometry(event.data.model);
       self.postMessage(
         { ok: true, ...result },
-        { transfer: [result.positions.buffer] },
+        { transfer: [result.positions.buffer, result.owners.buffer] },
       );
     }
   } catch (error) {

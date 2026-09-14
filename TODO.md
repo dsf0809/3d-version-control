@@ -1,21 +1,78 @@
 # Form — project progress
 
-Last updated: 2026-09-10
+Last updated: 2026-09-13
 
 ## Current status
 
-Stable feature identity, reviewable AI proposals and the feature inspector are
-implemented locally, along with measured change explanations and clickable feature
-bounds, plus a persistent project sidebar. Latest verification: 44 automated tests passed, type checking
-passed, and git diff whitespace checks passed. The production build passed
-with the feature inspector changes. Browser checks covered
-proposal comparison, reload, accept/discard, restore, branch switching and STL
-download. Live AI testing returned a usage-limit error; successful live generation
-is not verified. Offline tests make no API calls and do not measure AI quality.
+The architecture roadmap and Git-style team contribution implementation are now
+implemented locally. Owners invite editors/viewers, contributors edit their own
+branches, and merges use common ancestry, explicit conflict choices and the existing
+proposal approval flow. Main and project settings are owner-controlled. This is
+asynchronous collaboration, not simultaneous co-editing or external Git sync.
 
-The implementation batch is included in the local commit checkpoint below.
-The implementation is pushed to GitHub; hosted deployment remains pending and may differ from the
-local app. Local database migrations have been applied.
+76 offline tests passed. Browser checks passed for invitations/revocation, color
+proposals, branches, reviewed merges, lazy comparison models, 3MF colors, source
+picking and seven window sizes. Camera/idle-rendering, templates, mocked reload
+recovery and message paging also passed. The isolated compiled-worker smoke test
+passed alarm/RPC execution, deduplication and model proposal acceptance with two
+locally intercepted mock requests and zero external requests.
+
+Final type checking, production build and whitespace checks passed after UI polish.
+Successful live AI quality,
+actual slicer imports, physical printing and hosted multi-account authentication
+remain release checks. The existing large-bundle warning remains.
+
+All changes are local and uncommitted. Local migrations 0004–0006 are applied;
+GitHub and the hosted site do not include this batch. No paid AI calls or deployment.
+
+## Architecture improvements (approved 2026-09-12)
+
+1. [x] Geometry reuse: bounded model/comparison cache, persistent worker pool,
+   cancellation and server solid reuse. Verified locally: shared-job cancellation,
+   worker replacement, queue limit, timeout, cache eviction and reuse.
+2. [x] Targeted AI edits with server validation and a project-level choice of
+   review before applying (default) or automatically apply validated new edits.
+   Existing proposals still require review. Verified locally: targeted edits,
+   full-model fallback, locks, stale base rejection, owner permissions, idempotent
+   auto-save, cancellation/expired lease guards and proposal refinement.
+   Migration 0004 applied locally; hosted migration pending.
+3. [x] Separate editing, comparison and viewer state; independent browsing per tab.
+   Scoped read-only navigation returns the correct branch discussion and proposals.
+   Editing selection persists in session storage per tab; comparison and viewer
+   controls have separate reducer state per project. Comparison selection survives
+   editing-revision changes. Stale loads cannot replace newer navigation.
+   60 offline tests, type checking and build passed; two-tab revision/reload and
+   comparison preservation browser checks passed with zero navigation writes or AI calls.
+   Independent branch switching also passed in two tabs. Local and uncommitted.
+4. [x] Preserve camera through geometry changes; explicit Fit and demand rendering.
+   Verified locally: camera pose/projection stable within floating-point tolerance
+   across geometry/comparison changes, explicit Fit works, and idle draw calls stop.
+   Render scheduler regression covers frame coalescing, settling and disposal.
+5. [x] Durable generation jobs with reconnect, recovery and clear progress.
+   Durable Object alarm execution continues independently of the browser. Saved
+   phases, cancellation, completed-result deduplication and interrupted-job handling
+   are tested; uncertain paid requests are never automatically replayed.
+6. [x] Paginate project history and load revision geometry on demand.
+   40-item revision metadata/message pages, one selected model per snapshot, lazy
+   comparison model fetches and bounded client model retention. Cursor coverage tested.
+7. [x] Richer parameters, relationships, templates, feature colors and surface picking.
+   Validated starting templates, linear dimension links with cycle/lock checks,
+   feature colors through proposals and 3MF, and picking in original view. General
+   CAD constraint solving and arbitrary mesh editing remain outside this scope.
+8. [x] Split workshop/store modules, consolidate CSS and expand responsive regressions.
+   Workspace model/chat panels, orchestration hook, turn transactions, shared store
+   helpers and viewer engine extracted. Workspace/responsive CSS separated while
+   preserving cascade order. Seven window sizes and integrated flows verified.
+
+## Team collaboration
+
+- [x] Owner/editor/viewer access; single-use, expiring, revocable invitations.
+- [x] Shared project listing and contributor-owned branches; protected Main/settings.
+- [x] Three-way merges with explicit conflicts, proposal review and merge-parent history.
+- [x] Author attribution and revoked-access guards for queued/in-flight changes.
+- [x] Team controls in project details; branch refresh and merge controls in the header.
+- [ ] Hosted verification with separate real accounts and recipient access policy.
+- [ ] Later enhancements: team display names, comments, notifications and live presence.
 
 ## Completed
 
@@ -253,3 +310,135 @@ whitespace. No runtime changes, AI calls or deployment; this commit is not pushe
 
 Successfully pushed c5a981b (MIT license and README update) to origin/main.
 This tracker update accompanies the push. Hosted deployment remains pending.
+
+### 2026-09-12 — Independent workspace navigation
+
+Architecture item 3 implemented locally. Project/branch/revision browsing now uses
+scoped GET requests instead of changing the shared saved selection. Tabs remember
+their editing target independently. Branch-specific discussion and proposals are
+returned together; server validation rejects foreign branch/revision combinations.
+Presentation state has separate comparison and viewer reducer actions; choosing
+a comparison does not change the editing/export target. The chat heading names
+the editing revision. No new migration or paid AI test. Changes uncommitted.
+
+Final item-3 verification: 60 offline tests, type checking and production build
+passed. Two tabs independently selected revisions and branches and retained them
+on reload. Comparison pairs survived editing-revision changes. Navigation emitted
+zero PATCH selection writes, with zero browser errors and zero AI calls. Next:
+architecture item 4, camera preservation through geometry changes and demand rendering.
+
+### 2026-09-12 — Remaining architecture implementation batch
+
+Implemented camera preservation and demand rendering; extracted the Three.js
+engine and render scheduler from the React controls. Extracted chat orchestration
+from project navigation and added separate message paging and turn-status services.
+Added persisted generation phases and tab reload recovery (no automatic paid retry),
+40-message pages, and tray/enclosure/L-bracket starting templates with validated
+parameters in the existing new-project form. Extra dimensions remain collapsed.
+
+65 offline tests and type checking passed. Migration 0005 applied locally. Browser
+checks passed at 1280×720 and 390×844 for template creation, mocked request
+recovery, history paging and layout; no browser errors or paid API calls. Production
+build passed with the existing large-bundle warning. Item 4 is implemented; items 5–8
+remain partial: background queue execution, lazy revision models, feature
+relationships/colors/picking, and broader module/CSS consolidation are still open.
+Collaboration review: single-owner projects and fixed-revision read-only shares
+only; no teammate roles, invitations, comments or shared editing. Not deployed.
+
+### 2026-09-12 — Architecture completion and collaboration in progress
+
+Background Durable Object jobs, lazy revision model loading, feature relationships,
+colors/picking, and workspace/store decomposition are implemented locally. 72 offline
+tests, type checking and build passed; integrated browser verification remains pending.
+Adding invited viewer/editor membership, protected contributor branches and reviewed
+three-way merges. No paid AI calls, commit, or hosted deployment in this batch.
+
+### 2026-09-13 — Resumed verification
+
+Folder access restored. Fixed the hidden Appearance & dimension links heading
+caused by the older dialog CSS. Collaboration backend has 76 passing offline tests;
+local migration 0006 is applied. Completing integrated browser checks before marking
+the architecture items complete. No live paid AI test or deployment.
+
+### 2026-09-13 — Architecture and team integration verified
+
+76 offline tests cover roles, invitations, protected branches, merge attribution,
+conflict choices and revocation during generation, alongside existing behavior.
+Browser checks passed invitations/revocation, color and dimension proposals, branch
+creation and reviewed merge, lazy comparisons, colored 3MF and surface picking at
+1920×1080, 1440×900, 1280×720, 1024×768, 768×1024, 390×844 and 320×568.
+No browser errors or AI calls. A narrow-header polish prevents clipped project
+buttons. Appearance controls are accessible after fixing the legacy hidden summary.
+
+The production Durable Object ran in an isolated Miniflare test with a fresh DB,
+fake credentials and locally intercepted outbound responses. Alarm/RPC, idempotence
+and acceptance of a changed/colorized model passed. The live-endpoint smoke test
+was rejected by automatic approval review due to possible paid usage; the isolated
+offline test replaces it. Hosted migration/deployment and real-account validation
+remain pending. No commit, push or deployment.
+
+Final verification: 76/76 offline tests, type checking, production build and
+`git diff --check` passed. The final compiled-worker smoke test passed again with
+zero external requests. Mobile project buttons are readable at 320/390 px and the
+team dialog fits. Existing bundle-size warning remains. Some QA projects from
+interrupted browser runs remain: automatic approval review rejected name-based
+bulk archiving because it could include pre-existing records. No cleanup bypass
+was attempted. Local website restarted on port 3000; changes remain uncommitted.
+
+### 2026-09-13 — Private collaboration testing site published
+
+Deployment succeeded: https://form-collaboration-staging.dsf0809.chatgpt.site
+Separate staging checkout: /Users/dusifei/Documents/Codex/form-collaboration-staging
+Site: appgprj_6aa65784be5c81919bd1914abfa2cef1
+Source commit: cffec56a9f135b41e418b0171567e63ef6dbd223
+
+Confirmed the deployed DB contains all nine application tables, including project
+members and invitations. The staging source passed 76 offline tests, type checking
+and production build. No local model records or API credentials were copied; use
+manual dimension/color edits for cost-free collaboration tests. The original Site
+and GitHub repository were not deployed or pushed in this staging operation.
+
+Access remains owner-private. External tester invitations are supported, but no
+tester emails or authorization to send invitations have been provided. Remaining:
+allow identified testers into the private Site, then run the two-account project
+invitation → contributor branch → reviewed merge acceptance test in STAGING.md.
+Hosted end-to-end multi-account behavior and hosted AI jobs are not yet verified.
+
+### 2026-09-13 — Friendly AI connection setup
+
+Replaced environment-file-first instructions with plain-language status, teammate
+guidance, an optional website-owner walkthrough and collapsed technical details.
+Status distinguishes a saved key from verified AI access; refreshing never makes
+an AI request. Local and hosted setup instructions are shown separately. UI and
+type checking and production build passed. Browser checks passed for missing-key,
+key-added and error states at 1280/390/320 px, with zero AI calls. Staging publication pending.
+
+AI Connection update published successfully to the private staging site on
+2026-09-13 (Sites version 2, commit 14522ec0619f368946d2ed70b9c6f3438f51d5c9).
+The same UI changes are saved locally in the original project; GitHub/main Site
+were not pushed or deployed. No secrets were changed and no AI calls were made.
+
+## Draft-first AI behavior — 2026-09-13
+
+- [x] Added a reusable draft-first design skill to every AI request, including durable conversations. Missing optional dimensions use explained defaults; follow-up dimensions refine the draft. Information-only questions and genuinely blocking requirements remain clarification cases. Review/auto-apply, locks and validation are preserved.
+- [x] Verified 78 offline tests, including draft-skill delivery in standalone/durable requests, review/auto instructions, explanation preservation, targeted dimension refinement and question-only responses. Type checking, production build and whitespace checks passed. Mock tests verify integration, not live model compliance. No paid API calls.
+- [x] Published draft-first instructions to private collaboration staging (version 3). Real AI behavior remains unverified without a paid call.
+
+## Comparison visibility — 2026-09-13
+
+- [x] Added independent Removed/Added/Unchanged toggles inside the canvas, including focus/fullscreen. Hidden layers and their highlight outlines are invisible. Choices survive comparison changes and original-view switching; original model colors are unaffected. Visibility changes reuse geometry and preserve the camera.
+- [x] All 79 offline tests passed, including all eight visibility combinations, highlight hiding, replacement layers and unchanged geometry references. Type checking and production build passed; existing bundle-size warning remains. Browser interaction was not re-tested in this batch.
+- [x] Combined update published successfully to private collaboration staging, version 3, commit 8fe6cdfe5acbf0536f41334cd62651995a860b6c, on 2026-09-13. Original local source is updated; GitHub and the original hosted site were not pushed. No API calls or secrets changes.
+
+## Compact phone and half-screen workspace
+- [x] Below 1000px, show Model/Chat switching and collapse secondary project/design actions behind Project & tools. Keep both panels mounted, preserve desktop side-by-side layout, reduce header spacing and retain comparison controls.
+- [x] Type checking and production build passed. Project navigation defaults collapsed below 1000px.
+- [x] Published privately to staging version 4, commit 7d5d759f04d1bf45380e57b953603c02567d4869. Original local checkout also updated.
+- [ ] Browser interaction verification of the compact layout remains pending. No paid AI calls.
+
+## Change details in the viewer
+- [x] Renamed and moved the read-only feature log from chat to a toggle below Grid/Wireframe. Starts closed, comparison-only, scrollable overlay with close/Escape, phone bottom sheet, and existing highlighting.
+- [x] Type checking, build and whitespace checks passed. Published private staging version 5, commit a7a4deed9835002d7702a61b64f24518ffaddbce. Both local checkouts updated.
+- [ ] Browser interaction verification of the Change details panel. No paid API calls.
+
+- [x] Change entry titles now match detail text at 12px, with bold weight. Build passed; private staging version 6 published successfully.

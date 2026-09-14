@@ -1,3 +1,5 @@
+import { editProperties } from '@/lib/projects/feature-properties';
+import { projectSnapshot } from '@/lib/projects/revisions';
 import { projectStore } from '@/lib/projects/db';
 import { setDimensionLock } from '@/lib/projects/locks';
 import {
@@ -16,7 +18,17 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Context) {
   try {
     return json(
-      await projectStore().detail(ownerOf(request), (await context.params).id),
+      await projectSnapshot(
+        projectStore(),
+        ownerOf(request),
+        (await context.params).id,
+        {
+          branchId:
+            new URL(request.url).searchParams.get('branch') || undefined,
+          revisionId:
+            new URL(request.url).searchParams.get('revision') || undefined,
+        },
+      ),
     );
   } catch (e) {
     return failure(e);
@@ -28,14 +40,25 @@ export async function PATCH(request: Request, context: Context) {
       projectId = (await context.params).id,
       body = await readBody(request),
       store = projectStore();
+    const respond = async (p: import('@/lib/projects/types').ProjectDetail) =>
+      json(
+        await projectSnapshot(store, owner, projectId, {
+          branchId: p.activeBranchId,
+          revisionId: p.selectedRevisionId,
+        }),
+      );
+    if (body.action === 'feature-properties')
+      return respond(await editProperties(store, owner, projectId, body));
+    if (body.action === 'approval-mode')
+      return respond(await store.setApprovalMode(owner, projectId, body.mode));
     if (body.action === 'dimension-lock')
-      return json(await setDimensionLock(store, owner, projectId, body));
+      return respond(await setDimensionLock(store, owner, projectId, body));
     if (body.action === 'archive')
-      return json(await store.archive(owner, projectId, body.archived));
+      return respond(await store.archive(owner, projectId, body.archived));
     if (body.action === 'edit-feature')
-      return json(await editFeature(store, owner, projectId, body));
+      return respond(await editFeature(store, owner, projectId, body));
     if (body.action === 'restore')
-      return json(
+      return respond(
         await restoreRevision(
           store,
           owner,
@@ -45,7 +68,7 @@ export async function PATCH(request: Request, context: Context) {
         ),
       );
     if (body.action === 'review')
-      return json(
+      return respond(
         await reviewProposal(
           store,
           owner,
@@ -55,15 +78,15 @@ export async function PATCH(request: Request, context: Context) {
         ),
       );
     if (body.action === 'select')
-      return json(
+      return respond(
         await store.select(owner, projectId, body.branchId, body.revisionId),
       );
     if (body.action === 'fork')
-      return json(
+      return respond(
         await store.fork(owner, projectId, body.branchId, body.revisionId),
       );
     if (body.action === 'update')
-      return json(await store.update(owner, projectId, body));
+      return respond(await store.update(owner, projectId, body));
     throw new HttpError(400, 'Unknown project action.');
   } catch (e) {
     return failure(e);

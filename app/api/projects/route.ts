@@ -1,3 +1,4 @@
+import { projectSnapshot } from '@/lib/projects/revisions';
 import { projectStore } from '@/lib/projects/db';
 import {
   ownerOf,
@@ -17,16 +18,23 @@ export async function POST(request: Request) {
   try {
     const owner = ownerOf(request),
       body = await readBody(request, 2000000);
-    if (body?.action === 'demo')
-      return json(await projectStore().demo(owner), 201);
+    const store = projectStore();
+    const respond = async (p: import('@/lib/projects/types').ProjectDetail) =>
+      json(
+        await projectSnapshot(store, owner, p.id, {
+          branchId: p.activeBranchId,
+          revisionId: p.selectedRevisionId,
+        }),
+        201,
+      );
+    if (body?.action === 'demo') return respond(await store.demo(owner));
     if (
       body.importKey != null &&
       (typeof body.importKey !== 'string' || body.importKey.length > 100)
     )
       throw new HttpError(400, 'Invalid import identifier.');
-    return json(
-      await projectStore().create(owner, body, body.legacy, body.importKey),
-      201,
+    return respond(
+      await store.create(owner, body, body.legacy, body.importKey),
     );
   } catch (e) {
     return failure(e);

@@ -34,19 +34,39 @@ created once per user, and reopening it preserves subsequent edits.
 
 | Capability | How it helps |
 | --- | --- |
-| AI proposals | Describe an edit, inspect the result, then accept, refine, or discard it |
+| AI edit permissions | Review, refine or discard proposals by default; optionally auto-apply validated new AI edits per project |
 | Version comparison | Compare any two saved project revisions, including across branches, or preview a pending proposal |
 | Saved projects and branches | Return to earlier designs with their conversation and revision history |
-| Manual feature edits | Adjust dimensions and position without an AI request |
+| Manual feature edits | Adjust dimensions, position, feature colors and linked dimensions without an AI request |
+| Team contributions | Invite viewers/editors, contribute on protected branches, resolve conflicts and review merges |
 | Dimension locks | Protect selected feature dimensions across AI edits, manual edits, branches, and restoration |
 | Measured changes | Read before/after values and highlight the affected feature bounds |
+| Starting templates | Create a tray, open enclosure or L bracket with validated width, depth, height and wall thickness |
+| Request recovery | Check saved generation phases and recover a completed response after reload without sending a duplicate AI request |
 | Focus and fullscreen | Expand the model view while inspecting details; focus toggling preserves model scale and screen position |
 | Editable JSON import | Start a new project from a previously exported Form model |
 | STL and 3MF export | Download accepted geometry in millimeters for slicer preparation |
 | Read-only sharing | Share a fixed accepted revision, revoke its link, and control the STL download option |
 
 Projects can be searched, renamed, archived, and restored from the sidebar.
-The layout adapts to desktop, laptop, and narrower windows.
+The layout adapts to desktop, laptop, and narrower windows. Each browser tab
+remembers its own project, branch and editing revision across reloads. Browsing
+uses read-only requests; comparison controls do not change the editing or export
+target. Custom comparison pairs survive editing-revision changes within a project.
+The camera stays in place through geometry and comparison changes; **Fit model**
+reframes it explicitly. Rendering pauses when idle. Long conversations load the
+latest 40 messages, with **Load earlier messages** for older pages.
+
+Owners can invite editors or viewers from **Project details → Team & access**.
+Invitations are single-use links valid for seven days; membership and invitations
+can be revoked. Editors create their own branches (chat automatically branches when
+needed). The owner controls Main and project settings. Use **Refresh branch** to
+load teammates' latest accepted changes, and **Merge branches** to compare with a
+common ancestor, resolve conflicting values, and prepare a proposal for approval.
+Revisions record authors and merge parents. This is asynchronous collaboration;
+there are no live cursors, simultaneous co-editing, or external Git synchronization.
+Teammates need authenticated access to the same hosted instance. Local preview
+sign-in uses a single development identity.
 
 ## Run locally
 
@@ -97,10 +117,13 @@ Try a specific request such as:
    or use **Import model JSON** in the sidebar. Imports accept Form model JSON up
    to 1 MB, not STL, 3MF, or arbitrary CAD scripts.
 2. **Request or make an edit.** Chat with the assistant or use **Edit dimensions**.
-   AI responses and resulting geometry are validated before a proposal is saved.
+   AI responses and resulting geometry are validated before saving. Use **AI changes**
+   above the chat input to choose **Review changes** (default) or **Apply automatically**.
 3. **Review the proposal.** Use the comparison and measured changes. The accepted
    design stays unchanged until you choose **Accept changes**. Pending proposals
    survive reloads; failed or cancelled refinements preserve the previous proposal.
+   Automatic mode saves validated new AI edits as revisions. Dimension locks still
+   apply. Existing proposals, refinements, manual edits and restores still require review.
 4. **Save or revisit a version.** Acceptance creates a revision. Inspect earlier
    revisions, create branches, or use **Restore this version** to prepare a new
    proposal from an older design without deleting history.
@@ -134,11 +157,12 @@ fullscreen controls. **Focus model** hides comparison and history bars;
   curved surfaces are tessellated.
 - **No arbitrary sculpting or advanced CAD features:** fillets, text, STEP export,
   and general constraint solving are not implemented.
-- **No per-part colors yet:** the original model uses one blue material. An API
-  request such as “make the divider white” cannot currently change its color.
+- **Feature colors:** supported in original view, editable JSON and 3MF materials.
+  Comparison colors indicate geometry changes; color-only edits appear in measured
+  changes. Slicers may replace display colors with their filament settings.
 - **No STL/3MF mesh import:** the editable import route accepts Form JSON only.
-- **No branch merging, shared editing, or project deletion:** archiving is
-  available. Local and hosted databases do not synchronize automatically.
+- **Asynchronous team workflow:** no live presence, comments or project deletion.
+  Archiving is available. Local and hosted databases do not synchronize automatically.
 - **Comparisons measure geometry:** moving a part appears as removal and addition.
   Feature highlights outline source primitives, not exact ownership of every
   Boolean surface. Legacy feature matching can be ambiguous after renames.
@@ -171,10 +195,21 @@ pnpm typecheck
 pnpm build
 ```
 
-The latest recorded suite has **44 passing offline tests**, covering geometry,
+The latest recorded suite has **76 passing offline tests**, covering geometry,
 project ownership and persistence, proposals, branching, locks, sharing, imports,
-exports, and camera projection behavior. Tests use injected provider responses and
+exports, camera projection behavior, bounded geometry caching, targeted edit commands,
+and both approval modes. Tests use injected provider responses and
 isolated SQLite databases: **no API key or paid AI calls are required**.
+
+The production background-worker check uses a fresh Miniflare database, fake
+credentials and an outbound handler that returns local mock responses only:
+
+```sh
+pnpm test:worker:offline
+```
+
+It verifies alarm execution, RPC, duplicate suppression, proposal acceptance and
+feature colors without contacting an AI provider.
 
 Run the offline conversation scenario alone:
 
@@ -189,13 +224,29 @@ Browser checks and remaining release checks are recorded in [TODO.md](TODO.md).
 
 React/Vinext and Sites on Cloudflare Workers, D1 persistence, a Three.js viewer,
 JSCAD solid modeling, and the OpenAI Responses API with structured model data.
-Browser geometry compilation runs in a Web Worker; server validation also builds
-geometry. **AI-generated JavaScript is not executed.**
+Each generation request is enqueued in a Durable Object before the HTTP response
+returns. An alarm runs it independently of the browser, with persisted phases,
+explicit cancellation and reload recovery. Completed requests are idempotent;
+an uncertain interrupted provider call is never automatically replayed.
+Project reads return one selected model plus 40 revision summaries; comparison
+models load on demand and older metadata/messages have cursor-based paging.
+Templates, feature colors, linear dimension links and source-surface picking use
+validated model data. Geometry caches exclude display color changes.
+
+Browser geometry uses a two-worker pool and an in-memory LRU cache capped at
+64 MB or 100 entries; labels do not invalidate geometry. Cancellation, timeouts
+and page disposal release worker resources. Server comparison validation builds
+each solid once and skips triangulation of comparison-only meshes.
+Small AI edits use bounded commands against an exact revision or proposal ID;
+full models remain available for new designs and major rebuilds. The server applies
+commands to a clone and validates feature identity, dimensions, locks and geometry. **AI-generated JavaScript is not executed.**
 
 | Location | Responsibility |
 | --- | --- |
-| `components/workshop.tsx` | Chat, proposal review, comparison, and tool panels |
-| `components/model-viewer.tsx` | Rendering, focus/fullscreen integration, and camera controls |
+| `components/workshop.tsx`, `workspace-model.tsx`, `workspace-chat.tsx` | Tool dialogs, model workspace, and conversation/review panels |
+| `lib/projects/use-workshop.ts` | Workspace orchestration |
+| `workers/app.ts`, `lib/projects/background-job.ts` | Durable generation jobs and safe recovery |
+| `components/model-viewer.tsx` and `lib/viewer/` | Viewer controls, camera-preserving Three.js engine and demand rendering |
 | `components/project-sidebar.tsx` | Project navigation, search, import, and archiving |
 | `lib/projects/` | Persistence, ownership, proposals, locks, sharing, and conversation orchestration |
 | `lib/cad/` | Model schema, geometry, change explanations, and file exports |
@@ -209,7 +260,11 @@ with `pnpm db:migrate`. Keep previously applied migrations immutable.
 
 GitHub source and the hosted preview may differ. Configure hosted secrets separately;
 local `.env` values and local database records are not uploaded automatically.
-Hosted migrations and deployment remain pending for the current implementation.
+Hosted migrations 0004–0006 and deployment remain pending. Preserve the
+`GENERATION_JOBS` Durable Object binding and `generation-jobs-v1` SQLite migration
+from `vite.config.ts` in the deployed Worker configuration. The production build
+emits these settings in `dist/server/wrangler.json`. Verify the hosted sign-in and
+Sites recipient policy with separate accounts before opening invitations to users.
 
 A standalone public deployment needs verified authentication in place of the
 Sites-specific identity boundary, plus usage limits for paid AI requests. Never
@@ -223,7 +278,7 @@ For printing feedback, include your slicer, printer, and measured result. Screen
 or a non-sensitive model example help; do not include API keys or private project data.
 
 Useful next contributions include slicer validation, onboarding improvements,
-per-part color support, and broader browser testing. Check [TODO.md](TODO.md) before
+mesh import, team comments, and broader browser testing. Check [TODO.md](TODO.md) before
 starting substantial work and open an issue to discuss the scope.
 
 ## License

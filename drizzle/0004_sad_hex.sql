@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `approval_mode` text DEFAULT 'review' NOT NULL;

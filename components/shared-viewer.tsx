@@ -54,7 +54,11 @@ export default function SharedViewer({ token }: { token: string }) {
         {error ? (
           <p role="alert">{error}</p>
         ) : (
-          <ModelViewer geometry={geometry} comparison={null} />
+          <ModelViewer
+            model={data?.model}
+            geometry={geometry}
+            comparison={null}
+          />
         )}
       </section>
     </main>

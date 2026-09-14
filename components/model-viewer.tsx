@@ -1,298 +1,86 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { resizeCamera, fitCameraDistance, anchorCamera } from '@/lib/viewer-camera';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { comparisonLayers, defaultComparisonVisibility, type ComparisonVisibility } from '@/lib/viewer/comparison-visibility';
+import type { Model } from '@/lib/cad/model';
+import { useEffect, useRef, useState, useId } from 'react';
+import { createViewer } from '@/lib/viewer/engine';
 import type { Compiled, Comparison } from '@/lib/cad/compile';
-import { Focus, Grid2X2, Box, Maximize, Minimize } from 'lucide-react';
+import { Focus, Grid2X2, Box, Maximize, Minimize, ListFilter, X } from 'lucide-react';
 import type { FeatureChange } from '@/lib/cad/changes';
 export default function ModelViewer({
   geometry,
   comparison,
+  model,
+  onSelectFeature,
   highlight,
+  changes = [],
+  onHighlightChange,
   focusMode = false,
 }: {
   geometry: Compiled | null;
+  model?: Model;
+  onSelectFeature?: (id: string) => void;
   comparison: Comparison | null;
   highlight?: FeatureChange | null;
+  changes?: FeatureChange[];
+  onHighlightChange?: (id: string | null) => void;
   focusMode?: boolean;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsId = useId();
+  const detailsToggle = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!comparison) setDetailsOpen(false); }, [comparison]);
   const mount = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef(onSelectFeature);
+  selectionRef.current = onSelectFeature;
   const focusRef = useRef(focusMode);
   focusRef.current = focusMode;
   const api = useRef<{
     set: (g: Compiled, c: Comparison | null) => void;
+    appearance: (model: Model) => void;
+    visibility: (value: ComparisonVisibility) => void;
     fit: () => void;
     grid: () => void;
     wire: () => void;
     highlight: (change: FeatureChange | null) => void;
   } | null>(null);
+  const [visibility, setVisibility] = useState<ComparisonVisibility>(() => ({ ...defaultComparisonVisibility }));
   const [fullscreen, setFullscreen] = useState(false);
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
-  const fullscreenTarget = () => mount.current?.closest<HTMLElement>('.model-stage, .viewer-panel');
+  const fullscreenTarget = () =>
+    mount.current?.closest<HTMLElement>('.model-stage, .viewer-panel');
   useEffect(() => {
     setFullscreenSupported(!!document.fullscreenEnabled);
-    const changed = () => setFullscreen(document.fullscreenElement === fullscreenTarget());
+    const changed = () =>
+      setFullscreen(document.fullscreenElement === fullscreenTarget());
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
   const toggleFullscreen = async () => {
     setFullscreenError('');
     try {
-      if (document.fullscreenElement === fullscreenTarget()) await document.exitFullscreen();
+      if (document.fullscreenElement === fullscreenTarget())
+        await document.exitFullscreen();
       else await fullscreenTarget()?.requestFullscreen();
     } catch {
-      setFullscreenError('Fullscreen could not open. Try opening the app in a separate browser window.');
+      setFullscreenError(
+        'Fullscreen could not open. Try opening the app in a separate browser window.',
+      );
     }
   };
   const [error, setError] = useState('');
   const [grid, setGrid] = useState(true);
   const [wire, setWire] = useState(false);
   useEffect(() => {
-    const host = mount.current!;
-    let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    } catch {
-      setError(
-        '3D rendering needs WebGL. Try a browser with hardware acceleration enabled.',
-      );
-      return;
-    }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0xedf0f4, 1);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    host.appendChild(renderer.domElement);
-    renderer.domElement.setAttribute(
-      'aria-label',
-      'Interactive 3D model. Drag to orbit, scroll to zoom.',
+    const viewer = createViewer(
+      mount.current!,
+      () => focusRef.current,
+      setError,
+      (id) => selectionRef.current?.(id),
     );
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#edf0f4');
-    scene.fog = new THREE.Fog('#edf0f4', 700, 1800);
-    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 4000);
-    camera.up.set(0, 0, 1);
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.minDistance = 2;
-    controls.maxDistance = 2200;
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x778598, 2.8));
-    const light = new THREE.DirectionalLight(0xffffff, 3.3);
-    light.position.set(-150, -200, 350);
-    light.castShadow = true;
-    light.shadow.mapSize.set(2048, 2048);
-    Object.assign(light.shadow.camera, {
-      left: -400,
-      right: 400,
-      top: 400,
-      bottom: -400,
-      near: 1,
-      far: 1500,
-    });
-    light.shadow.bias = -0.001;
-    scene.add(light);
-    const fill = new THREE.DirectionalLight(0xc7dbff, 1.5);
-    fill.position.set(100, 100, 60);
-    scene.add(fill);
-    const gridHelper = new THREE.GridHelper(1600, 160, 0xc5ccd7, 0xdce1e8);
-    gridHelper.rotation.x = Math.PI / 2;
-    gridHelper.position.z = -0.3;
-    scene.add(gridHelper);
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(2000, 2000),
-      new THREE.ShadowMaterial({ opacity: 0.1 }),
-    );
-    floor.position.z = -0.4;
-    floor.receiveShadow = true;
-    scene.add(floor);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x778ee0,
-      roughness: 0.52,
-      metalness: 0.06,
-    });
-    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-    const diffGroup = new THREE.Group();
-    scene.add(diffGroup);
-    const selection = new THREE.Group();
-    scene.add(selection);
-    const clearDiff = () => {
-      for (const child of [...diffGroup.children]) {
-        const m = child as THREE.Mesh;
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
-        diffGroup.remove(m);
-      }
-    };
-    let radius = 85;
-    const center = new THREE.Vector3(0, 0, 13);
-    const fit = () => {
-      const distance = fitCameraDistance(camera, radius);
-      camera.position
-        .copy(center)
-        .add(
-          new THREE.Vector3(1, -1.4, 1.15).normalize().multiplyScalar(distance),
-        );
-      controls.target.copy(center);
-      controls.update();
-    };
-    api.current = {
-      highlight: (change) => {
-        for (const child of [...selection.children]) {
-          const line = child as THREE.LineSegments;
-          line.geometry.dispose();
-          (line.material as THREE.Material).dispose();
-          selection.remove(line);
-        }
-        if (!change) return;
-        for (const [feature, color] of [
-          [change.before, 0xe55a65],
-          [change.after, 0x28b578],
-        ] as const) {
-          if (!feature) continue;
-          const box = new THREE.BoxGeometry(...feature.size);
-          const line = new THREE.LineSegments(
-            new THREE.EdgesGeometry(box),
-            new THREE.LineBasicMaterial({
-              color,
-              depthTest: false,
-              transparent: true,
-              opacity: 1,
-            }),
-          );
-          box.dispose();
-          line.position.set(...feature.position);
-          line.rotation.set(
-            ...(feature.rotation.map(THREE.MathUtils.degToRad) as [
-              number,
-              number,
-              number,
-            ]),
-            'ZYX',
-          );
-          line.renderOrder = 10;
-          selection.add(line);
-        }
-      },
-      set: (g, c) => {
-        clearDiff();
-        mesh.visible = !c;
-        if (c) {
-          for (const key of ['unchanged', 'added', 'removed'] as const) {
-            if (!c[key].length) continue;
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.BufferAttribute(c[key], 3));
-            geo.computeVertexNormals();
-            const mat = new THREE.MeshStandardMaterial({
-              color:
-                key === 'added'
-                  ? 0x28b578
-                  : key === 'removed'
-                    ? 0xe55a65
-                    : 0x969eaa,
-              roughness: 0.7,
-              transparent: key === 'unchanged',
-              opacity: key === 'unchanged' ? 0.45 : 1,
-              depthWrite: key !== 'unchanged',
-              wireframe: material.wireframe,
-              polygonOffset: key !== 'unchanged',
-              polygonOffsetFactor: -1,
-            });
-            diffGroup.add(new THREE.Mesh(geo, mat));
-          }
-        }
-        const b = new THREE.BufferGeometry();
-        b.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
-        b.computeVertexNormals();
-        b.computeBoundingBox();
-        b.computeBoundingSphere();
-        mesh.geometry.dispose();
-        mesh.geometry = b;
-        const box = b.boundingBox!;
-        box.getCenter(center);
-        radius = Math.max(5, b.boundingSphere!.radius);
-        if (c) {
-          const combined = new THREE.Box3().setFromObject(diffGroup);
-          if (!combined.isEmpty()) {
-            combined.getCenter(center);
-            radius = Math.max(
-              5,
-              combined.getBoundingSphere(new THREE.Sphere()).radius,
-            );
-          }
-        }
-        floor.position.z = box.min.z - 0.4;
-        gridHelper.position.z = box.min.z - 0.3;
-        fit();
-      },
-      fit,
-      grid: () => {
-        gridHelper.visible = !gridHelper.visible;
-      },
-      wire: () => {
-        material.wireframe = !material.wireframe;
-        diffGroup.children.forEach((child) => {
-          (
-            (child as THREE.Mesh).material as THREE.MeshStandardMaterial
-          ).wireframe = material.wireframe;
-        });
-      },
-    };
-    let viewportHeight = 0;
-    let normalCenter: { x: number; y: number } | null = null;
-    const resize = () => {
-      const w = host.clientWidth,
-        h = host.clientHeight;
-      if (!w || !h) return;
-      renderer.setSize(w, h);
-      resizeCamera(camera, w, h, viewportHeight);
-      viewportHeight = h;
-      const bounds = host.getBoundingClientRect();
-      const panel = host.closest('.viewer-panel')?.getBoundingClientRect() ?? bounds;
-      const center = { x: bounds.left - panel.left + w / 2, y: bounds.top - panel.top + h / 2 };
-      const isFullscreen = document.fullscreenElement === host.closest('.model-stage, .viewer-panel');
-      if (isFullscreen) {
-        anchorCamera(camera, w, h, 0, 0);
-      } else {
-        if (!focusRef.current || !normalCenter) normalCenter = center;
-        anchorCamera(camera, w, h, center.x - normalCenter.x, center.y - normalCenter.y);
-      }
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(host);
-    resize();
-    fit();
-    let frame = 0;
-    const loop = () => {
-      frame = requestAnimationFrame(loop);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    loop();
-    const lost = (e: Event) => {
-      e.preventDefault();
-      setError(
-        'The 3D connection was interrupted. Reload to restore the viewer.',
-      );
-    };
-    renderer.domElement.addEventListener('webglcontextlost', lost);
+    api.current = viewer ?? null;
     return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      controls.dispose();
-      scene.traverse((o) => {
-        if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {
-          o.geometry.dispose();
-          const mats = Array.isArray(o.material) ? o.material : [o.material];
-          mats.forEach((m) => m.dispose());
-        }
-      });
-      renderer.dispose();
-      renderer.domElement.remove();
+      viewer?.dispose();
       api.current = null;
     };
   }, []);
@@ -300,8 +88,14 @@ export default function ModelViewer({
     if (geometry) api.current?.set(geometry, comparison);
   }, [geometry, comparison]);
   useEffect(() => {
+    if (model) api.current?.appearance(model);
+  }, [model, geometry]);
+  useEffect(() => {
     api.current?.highlight(highlight ?? null);
   }, [highlight]);
+  useEffect(() => {
+    api.current?.visibility(visibility);
+  }, [visibility]);
   return (
     <>
       <div ref={mount} className="view-canvas" />
@@ -310,11 +104,49 @@ export default function ModelViewer({
           {error}
         </div>
       )}
-      {fullscreenError && <div className="fullscreen-notice" role="status">{fullscreenError}</div>}
+      {fullscreenError && (
+        <div className="fullscreen-notice" role="status">
+          {fullscreenError}
+        </div>
+      )}
+      {comparison && (
+        <div className="comparison-layers" role="group" aria-label="Comparison layer visibility">
+          {comparisonLayers.map((layer) => {
+            const label = layer[0].toUpperCase() + layer.slice(1);
+            return <button key={layer} type="button"
+              aria-label={label} aria-pressed={visibility[layer]}
+              title={`${visibility[layer] ? 'Hide' : 'Show'} ${label.toLowerCase()} geometry`}
+              onClick={() => setVisibility((current) => ({ ...current, [layer]: !current[layer] }))}>
+              <i className={`legend-dot ${layer}`} aria-hidden="true" />{label}
+            </button>;
+          })}
+          {!Object.values(visibility).some(Boolean) && <span role="status">All layers hidden</span>}
+        </div>
+      )}
+      {comparison && detailsOpen && (
+        <section id={detailsId} className="viewer-change-details" aria-label="Change details"
+          onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setDetailsOpen(false); detailsToggle.current?.focus(); } }}>
+          <header><strong>Change details</strong><button type="button" aria-label="Close change details" onClick={() => { setDetailsOpen(false); detailsToggle.current?.focus(); }}><X size={16} /></button></header>
+          <p>Read-only changes between these versions. Select a feature to highlight its before and after bounds.</p>
+          <div className="viewer-change-list">
+            {changes.length === 0 && <p>No feature changes.</p>}
+            {changes.map((change) => <button type="button" key={change.id} aria-pressed={highlight?.id === change.id}
+              onClick={() => onHighlightChange?.(highlight?.id === change.id ? null : change.id)}>
+              <strong>{change.name}</strong>{change.details.map((detail) => <span key={detail}>{detail}</span>)}
+            </button>)}
+          </div>
+        </section>
+      )}
       <div className="view-tools">
         <button
           className={`quiet tool ${fullscreen ? 'active' : ''}`}
-          title={!fullscreenSupported ? 'Fullscreen is not supported in this browser' : fullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}
+          title={
+            !fullscreenSupported
+              ? 'Fullscreen is not supported in this browser'
+              : fullscreen
+                ? 'Exit fullscreen (Esc)'
+                : 'Enter fullscreen'
+          }
           aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           aria-pressed={fullscreen}
           disabled={!fullscreenSupported}
@@ -354,6 +186,9 @@ export default function ModelViewer({
         >
           <Box size={17} />
         </button>
+        {comparison && <button ref={detailsToggle} type="button" className={`quiet tool ${detailsOpen ? 'active' : ''}`}
+          title="Change details" aria-label="Change details" aria-expanded={detailsOpen} aria-controls={detailsOpen ? detailsId : undefined}
+          onClick={() => setDetailsOpen((open) => !open)}><ListFilter size={17} /></button>}
       </div>
     </>
   );

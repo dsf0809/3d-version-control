@@ -1,138 +1,97 @@
-import { sample, validateModel, upgradeModel } from '../cad/model';
-import { listProposals } from './proposals';
-import { getLocks } from './locks';
 import { buildGeometry } from '../cad/geometry';
-import { demoProject, demoHistory } from './demo';
 import { parseHistory, type Revision } from '../cad/history';
+import { sample, upgradeModel } from '../cad/model';
+import { demoHistory, demoProject } from './demo';
 import { HttpError } from './http';
+import { getLocks } from './locks';
+import { messagePage } from './messages';
+import { listProposals } from './proposals';
 import {
   lineage,
   type ProjectDetail,
-  type ProjectSummary,
   type SavedMessage,
-  type SavedRevision,
   type TurnInput,
   type TurnResult,
 } from './types';
 
-type Row = {
-  id: string;
-  owner_id: string;
-  project_id: string;
-  branch_id: string;
-  name: string;
-  brief: string;
-  requirements: string;
-  active_branch_id: string;
-  selected_revision_id: string;
-  head_revision_id: string;
-  parent_branch_id: string | null;
-  fork_revision_id: string | null;
-  conversation_id: string | null;
-  parent_id: string | null;
-  ordinal: number;
-  model_json: string;
-  prompt: string;
-  answer: string;
-  summary_json: string | null;
-  created_at: string;
-  updated_at: string;
-  archived: number;
-  role: 'user' | 'assistant';
-  content: string;
-  updated: number;
-  revision_id: string;
-  turn_id: string | null;
-  base_revision_id: string;
-  status: string;
-  result_json: string;
-  cutoff: number | null;
-  proposal_id: string | null;
-};
-const id = () => crypto.randomUUID();
-const now = () => new Date().toISOString();
-function field(value: unknown, name: string, max: number) {
-  if (typeof value !== 'string' || value.length > max)
-    throw new HttpError(
-      400,
-      `${name} must be text of at most ${max} characters.`,
-    );
-  return value.trim();
-}
-export function validateProject(input: unknown) {
-  const b = input as Record<string, unknown>;
-  if (!b) throw new HttpError(400, 'Project details are required.');
-  const name = field(b.name, 'Name', 120);
-  if (!name) throw new HttpError(400, 'Give the project a name.');
-  return {
-    name,
-    brief: field(b.brief ?? '', 'Design brief', 4000),
-    requirements: field(b.requirements ?? '', 'Requirements', 8000),
-  };
-}
-export function validateTurn(input: unknown): TurnInput {
-  const b = input as Record<string, unknown>;
-  if (!b) throw new HttpError(400, 'A request is required.');
-  for (const k of ['projectId', 'branchId', 'revisionId', 'requestId'])
-    if (typeof b[k] !== 'string' || !/^[\w-]{1,100}$/.test(b[k]))
-      throw new HttpError(400, 'Invalid project or request identifier.');
-  const message = field(b.message, 'Message', 8000);
-  if (
-    b.proposalId != null &&
-    (typeof b.proposalId !== 'string' || !/^[\w-]{1,100}$/.test(b.proposalId))
-  )
-    throw new HttpError(400, 'Invalid proposal identifier.');
-  if (!message) throw new HttpError(400, 'Enter a message.');
-  return { ...b, message } as TurnInput;
-}
-function summary(r: Row): ProjectSummary {
-  return {
-    archived: !!r.archived,
-    id: r.id,
-    name: r.name,
-    brief: r.brief,
-    requirements: r.requirements,
-    activeBranchId: r.active_branch_id,
-    selectedRevisionId: r.selected_revision_id,
-    updatedAt: r.updated_at,
-  };
-}
-function revision(r: Row): SavedRevision {
-  return {
-    id: r.id,
-    parentId: r.parent_id,
-    branchId: r.branch_id,
-    ordinal: r.ordinal,
-    model: upgradeModel(JSON.parse(r.model_json)),
-    prompt: r.prompt,
-    answer: r.answer,
-    createdAt: r.created_at,
-    summary: r.summary_json ? JSON.parse(r.summary_json) : undefined,
-  };
-}
+import {
+  id,
+  now,
+  revision,
+  summary,
+  validateProject,
+  type Row,
+} from './store-shared';
+import * as turnTransactions from './turn-transactions';
+export { validateProject, validateTurn } from './store-shared';
 export class ProjectStore {
   constructor(public db: D1Database) {}
   stmt(sql: string, ...args: unknown[]) {
     return this.db.prepare(sql).bind(...args);
   }
-  async own(owner: string, projectId: string) {
+  async own(
+    owner: string,
+    projectId: string,
+    required: 'view' | 'edit' | 'owner' = 'edit',
+  ) {
     const p = await this.stmt(
-      'SELECT * FROM projects WHERE id=? AND owner_id=?',
+      "SELECT p.*,CASE WHEN p.owner_id=? THEN 'owner' ELSE m.role END AS access_role FROM projects p LEFT JOIN project_members m ON m.project_id=p.id AND m.user_id=? WHERE p.id=? AND (p.owner_id=? OR m.user_id IS NOT NULL)",
+      owner,
+      owner,
       projectId,
       owner,
     ).first<Row>();
     if (!p) throw new HttpError(404, 'Project not found.');
+    if (
+      (required === 'owner' && p.access_role !== 'owner') ||
+      (required === 'edit' && p.access_role === 'viewer')
+    )
+      throw new HttpError(403, 'Your project role does not allow this action.');
     return p;
+  }
+  async assertBranchWrite(actor: string, projectId: string, branchId: string) {
+    const p = await this.own(actor, projectId);
+    const b = await this.stmt(
+      'SELECT * FROM branches WHERE id=? AND project_id=?',
+      branchId,
+      projectId,
+    ).first<Row>();
+    if (!b) throw new HttpError(404, 'Branch not found.');
+    if (
+      p.access_role !== 'owner' &&
+      (!b.parent_branch_id || b.created_by !== actor)
+    )
+      throw new HttpError(
+        403,
+        'Create your own contributor branch to edit this design.',
+      );
+    return b;
   }
   async list(owner: string) {
     const r = await this.stmt(
-      'SELECT * FROM projects WHERE owner_id=? ORDER BY updated_at DESC,id',
+      "SELECT p.*,CASE WHEN p.owner_id=? THEN 'owner' ELSE m.role END AS access_role FROM projects p LEFT JOIN project_members m ON m.project_id=p.id AND m.user_id=? WHERE p.owner_id=? OR m.user_id IS NOT NULL ORDER BY p.updated_at DESC,p.id",
+      owner,
+      owner,
       owner,
     ).all<Row>();
     return r.results.map(summary);
   }
-  async detail(owner: string, projectId: string): Promise<ProjectDetail> {
-    const p = await this.own(owner, projectId);
+  async detail(
+    owner: string,
+    projectId: string,
+    view?: { branchId?: string; revisionId?: string; pageMessages?: boolean },
+  ): Promise<ProjectDetail> {
+    const p = await this.own(owner, projectId, 'view');
+    const branchId = view?.branchId || p.active_branch_id;
+    const branch = await this.stmt(
+      'SELECT * FROM branches WHERE id=? AND project_id=?',
+      branchId,
+      projectId,
+    ).first<Row>();
+    if (!branch) throw new HttpError(404, 'Branch not found.');
+    const selectedId =
+      view?.revisionId ||
+      (view?.branchId ? branch.head_revision_id : p.selected_revision_id);
     const [bs, rs, ms] = await this.db.batch<Row>([
       this.stmt(
         'SELECT * FROM branches WHERE project_id=? ORDER BY created_at,id',
@@ -143,10 +102,19 @@ export class ProjectStore {
         projectId,
       ),
       this.stmt(
-        'SELECT * FROM messages WHERE branch_id=? ORDER BY ordinal',
-        p.active_branch_id,
+        view?.pageMessages
+          ? 'SELECT * FROM messages WHERE branch_id=? AND 0'
+          : 'SELECT * FROM messages WHERE branch_id=? ORDER BY ordinal',
+        branchId,
       ),
     ]);
+    if (
+      view?.revisionId &&
+      !lineage(rs.results.map(revision), branch.head_revision_id).some(
+        (r) => r.id === selectedId,
+      )
+    )
+      throw new HttpError(404, 'Revision is not in this branch history.');
     // Persist an idempotent data upgrade while preserving the original geometry.
     const upgrades = rs.results
       .filter((r) => JSON.parse(r.model_json).schemaVersion !== 2)
@@ -159,9 +127,14 @@ export class ProjectStore {
         ),
       );
     if (upgrades.length) await this.db.batch(upgrades);
+    const page = view?.pageMessages
+      ? await messagePage(this, owner, projectId, branchId)
+      : null;
     return {
       ...summary(p),
-      proposals: await listProposals(this, p.active_branch_id),
+      activeBranchId: branchId,
+      selectedRevisionId: selectedId,
+      proposals: await listProposals(this, branchId),
       dimensionLocks: await getLocks(this, projectId),
       branches: bs.results.map((b) => ({
         id: b.id,
@@ -170,20 +143,29 @@ export class ProjectStore {
         parentBranchId: b.parent_branch_id,
         forkRevisionId: b.fork_revision_id,
         conversationReady: !!b.conversation_id,
+        createdBy: b.created_by || p.owner_id,
+        canEdit:
+          p.access_role === 'owner' ||
+          (p.access_role === 'editor' &&
+            !!b.parent_branch_id &&
+            b.created_by === owner),
       })),
       revisions: rs.results.map(revision),
-      messages: ms.results.map(
-        (m) =>
-          ({
-            id: m.id,
-            role: m.role,
-            content: m.content,
-            updated: !!m.updated,
-            revisionId: m.revision_id,
-            turnId: m.turn_id,
-            proposalId: m.proposal_id,
-          }) as SavedMessage,
-      ),
+      ...(page ? { messageCursor: page.messageCursor } : {}),
+      messages: page
+        ? page.messages
+        : ms.results.map(
+            (m) =>
+              ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                updated: !!m.updated,
+                revisionId: m.revision_id,
+                turnId: m.turn_id,
+                proposalId: m.proposal_id,
+              }) as SavedMessage,
+          ),
     };
   }
   async demo(owner: string) {
@@ -323,7 +305,7 @@ export class ProjectStore {
     for (const b of branchRows)
       stmts.push(
         this.stmt(
-          'INSERT INTO branches (id,project_id,name,parent_branch_id,fork_revision_id,head_revision_id,created_at) VALUES (?,?,?,?,?,?,?)',
+          'INSERT INTO branches (id,project_id,name,parent_branch_id,fork_revision_id,head_revision_id,created_at,created_by) VALUES (?,?,?,?,?,?,?,?)',
           b.id,
           projectId,
           b.name,
@@ -331,12 +313,13 @@ export class ProjectStore {
           b.fork,
           b.head,
           date,
+          owner,
         ),
       );
     history.forEach((r, i) =>
       stmts.push(
         this.stmt(
-          'INSERT INTO revisions (id,project_id,branch_id,parent_id,ordinal,model_json,prompt,answer,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO revisions (id,project_id,branch_id,parent_id,ordinal,model_json,prompt,answer,created_at,author_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
           map.get(r.id),
           projectId,
           branchFor.get(r.id),
@@ -350,6 +333,7 @@ export class ProjectStore {
               ? 'Imported from browser history.'
               : '',
           r.createdAt || date,
+          owner,
         ),
       ),
     );
@@ -369,7 +353,7 @@ export class ProjectStore {
     return this.detail(owner, projectId);
   }
   async archive(owner: string, projectId: string, archived: unknown) {
-    await this.own(owner, projectId);
+    await this.own(owner, projectId, 'owner');
     if (typeof archived !== 'boolean')
       throw new HttpError(400, 'Choose archive or restore.');
     await this.stmt(
@@ -382,7 +366,7 @@ export class ProjectStore {
     return this.detail(owner, projectId);
   }
   async update(owner: string, projectId: string, input: unknown) {
-    await this.own(owner, projectId);
+    await this.own(owner, projectId, 'owner');
     const p = validateProject(input);
     await this.stmt(
       'UPDATE projects SET name=?,brief=?,requirements=?,updated_at=? WHERE id=? AND owner_id=?',
@@ -424,6 +408,7 @@ export class ProjectStore {
     branchId: string,
     revisionId: string,
   ) {
+    await this.own(owner, projectId);
     const detail = await this.detail(owner, projectId);
     const b = detail.branches.find((b) => b.id === branchId);
     if (
@@ -452,7 +437,7 @@ export class ProjectStore {
           ).results;
     const stmts = [
       this.stmt(
-        'INSERT INTO branches (id,project_id,name,parent_branch_id,fork_revision_id,head_revision_id,created_at) VALUES (?,?,?,?,?,?,?)',
+        'INSERT INTO branches (id,project_id,name,parent_branch_id,fork_revision_id,head_revision_id,created_at,created_by) VALUES (?,?,?,?,?,?,?,?)',
         newId,
         projectId,
         `Branch ${detail.branches.length + 1}`,
@@ -460,6 +445,7 @@ export class ProjectStore {
         revisionId,
         revisionId,
         date,
+        owner,
       ),
     ];
     ms.forEach((m) =>
@@ -490,243 +476,38 @@ export class ProjectStore {
       ),
     );
     await this.db.batch(stmts);
-    return this.detail(owner, projectId);
+    return this.detail(owner, projectId, { branchId: newId });
   }
   async begin(owner: string, input: TurnInput) {
-    const p = await this.own(owner, input.projectId);
-    const old = await this.stmt(
-      'SELECT * FROM turns WHERE id=?',
-      input.requestId,
-    ).first<Row>();
-    if (old) {
-      if (
-        old.project_id !== input.projectId ||
-        old.branch_id !== input.branchId ||
-        old.base_revision_id !== input.revisionId ||
-        (old.proposal_id ?? null) !== (input.proposalId ?? null) ||
-        old.prompt !== input.message
-      )
-        throw new HttpError(409, 'This request identifier was already used.');
-      if (old.status === 'completed')
-        return { cached: JSON.parse(old.result_json) as TurnResult };
-      if (old.status === 'pending')
-        throw new HttpError(
-          409,
-          'This request is still running. Reopen the project shortly to check its result.',
-        );
-      throw new HttpError(
-        409,
-        'This request did not complete. Send it again as a new request.',
-      );
-    }
-    const time = Date.now();
-    const b = await this.stmt(
-      'UPDATE branches SET conversation_id=CASE WHEN lock_token IS NOT NULL THEN NULL ELSE conversation_id END,lock_token=?,lock_until=? WHERE id=? AND project_id=? AND head_revision_id=? AND lock_until<? RETURNING *',
-      input.requestId,
-      time + 180000,
-      input.branchId,
-      input.projectId,
-      input.revisionId,
-      time,
-    ).first<Row>();
-    if (!b)
-      throw new HttpError(
-        409,
-        'This branch changed or has a request in progress. Reload the project before continuing.',
-      );
-    try {
-      const pending = (await listProposals(this, input.branchId)).find(
-        (p) => p.status === 'pending',
-      );
-      if ((pending?.id ?? null) !== (input.proposalId ?? null))
-        throw new HttpError(
-          409,
-          'The proposal changed. Reload and review or refine the current proposal.',
-        );
-      await this.db.batch([
-        this.stmt(
-          "UPDATE turns SET status='failed',error='The previous request expired.' WHERE branch_id=? AND status='pending'",
-          input.branchId,
-        ),
-        this.stmt(
-          "INSERT INTO turns (id,project_id,branch_id,base_revision_id,prompt,proposal_id,status,created_at) VALUES (?,?,?,?,?,?,'pending',?)",
-          input.requestId,
-          input.projectId,
-          input.branchId,
-          input.revisionId,
-          input.message,
-          input.proposalId ?? null,
-          now(),
-        ),
-      ]);
-    } catch (error) {
-      await this.stmt(
-        'UPDATE branches SET lock_token=NULL,lock_until=0 WHERE id=? AND lock_token=?',
-        input.branchId,
-        input.requestId,
-      ).run();
-      throw error;
-    }
-    const r = await this.stmt(
-      'SELECT * FROM revisions WHERE id=? AND project_id=?',
-      input.revisionId,
-      input.projectId,
-    ).first<Row>();
-    if (!r) {
-      await this.fail(input, 'Selected revision missing.');
-      throw new HttpError(404, 'Revision not found.');
-    }
-    return { project: p, branch: b, revision: revision(r) };
+    return turnTransactions.begin.call(this, owner, input);
   }
   async setConversation(input: TurnInput, conversationId: string) {
-    const r = await this.stmt(
-      'UPDATE branches SET conversation_id=? WHERE id=? AND lock_token=?',
-      conversationId,
-      input.branchId,
-      input.requestId,
-    ).run();
-    if (!r.meta.changes)
-      throw new HttpError(409, 'The request was cancelled or superseded.');
+    return turnTransactions.setConversation.call(this, input, conversationId);
   }
   async history(branchId: string) {
-    return (
-      await this.stmt(
-        'SELECT role,content FROM messages WHERE branch_id=? ORDER BY ordinal',
-        branchId,
-      ).all<{ role: 'user' | 'assistant'; content: string }>()
-    ).results;
+    return turnTransactions.history.call(this, branchId);
   }
-  async commit(input: TurnInput, result: TurnResult, volumeSummary: unknown) {
-    const date = now(),
-      newRevision = result.model ? result.revisionId : input.revisionId;
-    const guard =
-      'EXISTS (SELECT 1 FROM branches WHERE id=? AND lock_token=? AND head_revision_id=?)';
-    const args = [input.branchId, input.requestId, input.revisionId];
-    const stmts: D1PreparedStatement[] = [];
-    if (result.model)
-      stmts.push(
-        this.stmt(
-          `INSERT INTO revisions (id,project_id,branch_id,parent_id,ordinal,model_json,prompt,answer,summary_json,created_at) SELECT ?,?,?,?,(SELECT COALESCE(MAX(ordinal),-1)+1 FROM revisions WHERE project_id=?),?,?,?,?,? WHERE ${guard}`,
-          newRevision,
-          input.projectId,
-          input.branchId,
-          input.revisionId,
-          input.projectId,
-          JSON.stringify(result.model),
-          input.message,
-          result.message,
-          JSON.stringify(volumeSummary),
-          date,
-          ...args,
-        ),
-      );
-    for (const [role, content, updated] of [
-      ['user', input.message, 0],
-      ['assistant', result.message, result.model ? 1 : 0],
-    ])
-      stmts.push(
-        this.stmt(
-          `INSERT INTO messages (id,project_id,branch_id,turn_id,ordinal,role,content,revision_id,updated,created_at) SELECT ?,?,?,?,(SELECT COALESCE(MAX(ordinal),-1)+1 FROM messages WHERE branch_id=?),?,?,?,?,? WHERE ${guard}`,
-          id(),
-          input.projectId,
-          input.branchId,
-          input.requestId,
-          input.branchId,
-          role,
-          content,
-          newRevision,
-          updated,
-          date,
-          ...args,
-        ),
-      );
-    stmts.push(
-      this.stmt(
-        `UPDATE turns SET status='completed',result_json=? WHERE id=? AND ${guard}`,
-        JSON.stringify(result),
-        input.requestId,
-        ...args,
-      ),
+  async setApprovalMode(owner: string, projectId: string, mode: unknown) {
+    return turnTransactions.setApprovalMode.call(this, owner, projectId, mode);
+  }
+  async commit(
+    input: TurnInput,
+    result: TurnResult,
+    volumeSummary: unknown,
+    automatic = false,
+  ) {
+    return turnTransactions.commit.call(
+      this,
+      input,
+      result,
+      volumeSummary,
+      automatic,
     );
-    stmts.push(
-      this.stmt(
-        `UPDATE projects SET selected_revision_id=CASE WHEN active_branch_id=? AND selected_revision_id=? THEN ? ELSE selected_revision_id END,updated_at=? WHERE id=? AND ${guard}`,
-        input.branchId,
-        input.revisionId,
-        newRevision,
-        date,
-        input.projectId,
-        ...args,
-      ),
-    );
-    stmts.push(
-      this.stmt(
-        'UPDATE branches SET head_revision_id=?,lock_token=NULL,lock_until=0 WHERE id=? AND lock_token=? AND head_revision_id=?',
-        newRevision,
-        ...args,
-      ),
-    );
-    const outcome = await this.db.batch(stmts);
-    if (!outcome.at(-1)?.meta.changes)
-      throw new HttpError(
-        409,
-        'The request was cancelled or superseded; no model was saved.',
-      );
   }
   async fail(input: TurnInput, message: string, cancelled = false) {
-    await this.db.batch([
-      this.stmt(
-        "UPDATE turns SET status=?,error=? WHERE id=? AND project_id=? AND status='pending'",
-        cancelled ? 'cancelled' : 'failed',
-        message,
-        input.requestId,
-        input.projectId,
-      ),
-      this.stmt(
-        'UPDATE branches SET conversation_id=NULL,lock_token=NULL,lock_until=0 WHERE id=? AND lock_token=?',
-        input.branchId,
-        input.requestId,
-      ),
-    ]);
+    return turnTransactions.fail.call(this, input, message, cancelled);
   }
   async cancel(owner: string, raw: unknown) {
-    const input = validateTurn(raw);
-    await this.own(owner, input.projectId);
-    const branch = await this.stmt(
-      'SELECT id FROM branches WHERE id=? AND project_id=?',
-      input.branchId,
-      input.projectId,
-    ).first();
-    if (!branch) throw new HttpError(404, 'Branch not found.');
-    // Record cancellation even if the generation request has not reached begin yet.
-    await this.stmt(
-      "INSERT INTO turns (id,project_id,branch_id,base_revision_id,prompt,proposal_id,status,created_at) VALUES (?,?,?,?,?,?,'cancelled',?) ON CONFLICT(id) DO NOTHING",
-      input.requestId,
-      input.projectId,
-      input.branchId,
-      input.revisionId,
-      input.message,
-      input.proposalId ?? null,
-      now(),
-    ).run();
-    const t = await this.stmt(
-      'SELECT * FROM turns WHERE id=? AND project_id=?',
-      input.requestId,
-      input.projectId,
-    ).first<Row>();
-    if (
-      !t ||
-      t.branch_id !== input.branchId ||
-      t.base_revision_id !== input.revisionId ||
-      (t.proposal_id ?? null) !== (input.proposalId ?? null) ||
-      t.prompt !== input.message
-    )
-      throw new HttpError(409, 'This request identifier was already used.');
-    if (t.status === 'pending') await this.fail(input, 'Cancelled.', true);
-    const current = await this.stmt(
-      'SELECT status FROM turns WHERE id=?',
-      input.requestId,
-    ).first<Row>();
-    return { status: current?.status };
+    return turnTransactions.cancel.call(this, owner, raw);
   }
 }

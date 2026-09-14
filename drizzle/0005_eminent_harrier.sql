@@ -1,0 +1,1 @@
+ALTER TABLE `turns` ADD `phase` text DEFAULT 'context' NOT NULL;

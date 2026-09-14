@@ -1,16 +1,19 @@
 'use client';
+import type { RevisionSummary } from './revisions';
+import type { SavedRevision } from './types';
+import { NavigationSequence } from './workspace-state';
+import {
+  readSelection,
+  saveSelection,
+  projectViewURL,
+  type EditingSelection,
+} from './navigation';
 import { useEffect, useRef, useState } from 'react';
 import { compileModel, type Compiled } from '../cad/compile';
 import { sample } from '../cad/model';
 import { STORAGE_KEY, parseHistory } from '../cad/history';
-import {
-  lineage,
-  type ProjectDetail,
-  type ProjectSummary,
-  type TurnInput,
-  type TurnResult,
-} from './types';
-class ApiError extends Error {
+import { lineage, type ProjectDetail, type ProjectSummary } from './types';
+export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
@@ -33,6 +36,13 @@ export async function api<T>(
   if (!r.ok) throw new ApiError(r.status, data.error || 'The request failed.');
   return data;
 }
+export async function readProject(
+  id: string,
+  signal?: AbortSignal,
+  selection: Partial<EditingSelection> | undefined = readSelection(id),
+) {
+  return api<ProjectDetail>(projectViewURL(id, selection), { signal });
+}
 export function useProjects() {
   const [project, setProject] = useState<ProjectDetail | null>(null),
     [projects, setProjects] = useState<ProjectSummary[]>([]),
@@ -41,13 +51,18 @@ export function useProjects() {
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [warning, setWarning] = useState('');
+  const sequence = useRef(new NavigationSequence());
   const loadController = useRef<AbortController | null>(null);
   const refreshList = async () => {
     const list = await api<ProjectSummary[]>('/api/projects');
     setProjects(list);
     return list;
   };
-  const apply = async (detail: ProjectDetail, signal?: AbortSignal) => {
+  const apply = async (
+    detail: ProjectDetail,
+    signal?: AbortSignal,
+    token = sequence.current.current(),
+  ) => {
     const r = detail.revisions.find((r) => r.id === detail.selectedRevisionId);
     if (!r) throw new Error('The saved revision could not be found.');
     const pending = detail.proposals.find(
@@ -58,35 +73,60 @@ export function useProjects() {
       pending ? compileModel(pending.model, signal) : Promise.resolve(null),
     ]);
     signal?.throwIfAborted();
-    setProject(detail);
+    if (!sequence.current.isCurrent(token)) return;
+    setProject((previous) => {
+      if (previous?.id !== detail.id) return detail;
+      const full = [
+        ...detail.revisions,
+        ...previous.revisions.filter(
+          (r) => !detail.revisions.some((n) => n.id === r.id),
+        ),
+      ].slice(0, 40);
+      const index = [
+        ...(detail.revisionIndex || detail.revisions),
+        ...(previous.revisionIndex || previous.revisions).filter(
+          (r) =>
+            !(detail.revisionIndex || detail.revisions).some(
+              (n) => n.id === r.id,
+            ),
+        ),
+      ];
+      return { ...detail, revisions: full, revisionIndex: index };
+    });
     setGeometry(g);
     setProposalGeometry(pg);
     try {
-      localStorage.setItem('form-active-project', detail.id);
+      saveSelection(detail.id, {
+        branchId: detail.activeBranchId,
+        revisionId: detail.selectedRevisionId,
+      });
     } catch {
       /* Optional device preference. */
     }
   };
   const load = async (id: string) => {
+    const token = sequence.current.next();
     loadController.current?.abort();
     const abort = new AbortController();
     loadController.current = abort;
     setLoading(true);
     setError('');
     try {
-      await apply(
-        await api<ProjectDetail>(`/api/projects/${id}`, {
-          signal: abort.signal,
-        }),
-        abort.signal,
-      );
+      await apply(await readProject(id, abort.signal), abort.signal, token);
     } catch (e) {
-      if (e instanceof Error && e.name !== 'AbortError') setError(e.message);
+      if (
+        sequence.current.isCurrent(token) &&
+        e instanceof Error &&
+        e.name !== 'AbortError'
+      )
+        setError(e.message);
     } finally {
-      if (!abort.signal.aborted) setLoading(false);
+      if (!abort.signal.aborted && sequence.current.isCurrent(token))
+        setLoading(false);
     }
   };
   useEffect(() => {
+    const token = sequence.current.next();
     const abort = new AbortController();
     loadController.current = abort;
     void (async () => {
@@ -148,7 +188,10 @@ export function useProjects() {
         setProjects(list);
         let preferred = '';
         try {
-          preferred = localStorage.getItem('form-active-project') || '';
+          preferred =
+            sessionStorage.getItem('form-active-project') ||
+            localStorage.getItem('form-active-project') ||
+            '';
         } catch {}
         const chosen =
           imported?.id ||
@@ -157,20 +200,47 @@ export function useProjects() {
         await apply(
           imported?.id === chosen
             ? imported
-            : await api<ProjectDetail>(`/api/projects/${chosen}`, {
-                signal: abort.signal,
-              }),
+            : await readProject(chosen, abort.signal),
           abort.signal,
+          token,
         );
       } catch (e) {
-        if (e instanceof Error && e.name !== 'AbortError') setError(e.message);
+        if (
+          sequence.current.isCurrent(token) &&
+          e instanceof Error &&
+          e.name !== 'AbortError'
+        )
+          setError(e.message);
       } finally {
-        if (!abort.signal.aborted) setLoading(false);
+        if (!abort.signal.aborted && sequence.current.isCurrent(token))
+          setLoading(false);
       }
     })();
     return () => abort.abort();
   }, []);
-  const mutate = async (body: unknown) => {
+  const mutate = async (body: any) => {
+    const token = sequence.current.next();
+    if (body.action === 'select' && project) {
+      loadController.current?.abort();
+      const abort = new AbortController();
+      loadController.current = abort;
+      setLoading(true);
+      setError('');
+      try {
+        const p = await api<ProjectDetail>(projectViewURL(project.id, body), {
+          signal: abort.signal,
+        });
+        await apply(p, abort.signal, token);
+        return p;
+      } catch (e) {
+        if (!abort.signal.aborted)
+          setError(e instanceof Error ? e.message : 'Could not open revision.');
+        throw e;
+      } finally {
+        if (!abort.signal.aborted && sequence.current.isCurrent(token))
+          setLoading(false);
+      }
+    }
     if (!project) return;
     setLoading(true);
     setError('');
@@ -179,14 +249,31 @@ export function useProjects() {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
-      await apply(p);
+      let view =
+        body.action === 'fork'
+          ? p
+          : await readProject(p.id, undefined, {
+              branchId: project.activeBranchId,
+              revisionId: project.selectedRevisionId,
+            });
+      const accepted =
+        body.action === 'review' && body.decision === 'accept'
+          ? p.selectedRevisionId
+          : null;
+      if (accepted)
+        view = await readProject(p.id, undefined, {
+          branchId: project.activeBranchId,
+          revisionId: accepted,
+        });
+      await apply(view, undefined, token);
       await refreshList();
-      return p;
+      return view;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save project.');
+      if (sequence.current.isCurrent(token))
+        setError(e instanceof Error ? e.message : 'Could not save project.');
       throw e;
     } finally {
-      setLoading(false);
+      if (sequence.current.isCurrent(token)) setLoading(false);
     }
   };
   const create = async (data: {
@@ -195,6 +282,7 @@ export function useProjects() {
     brief: string;
     requirements: string;
   }) => {
+    const token = sequence.current.next();
     setLoading(true);
     setError('');
     try {
@@ -202,29 +290,149 @@ export function useProjects() {
         method: 'POST',
         body: JSON.stringify(data),
       });
-      await apply(p);
+      await apply(p, undefined, token);
       await refreshList();
       return p;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create project.');
+      if (sequence.current.isCurrent(token))
+        setError(e instanceof Error ? e.message : 'Could not create project.');
       throw e;
     } finally {
-      setLoading(false);
+      if (sequence.current.isCurrent(token)) setLoading(false);
+    }
+  };
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const loadOlderMessages = async () => {
+    if (!project || project.messageCursor == null || loadingMessages) return;
+    const token = sequence.current.current(),
+      snapshot = project;
+    setLoadingMessages(true);
+    try {
+      const page = await api<{
+        messages: ProjectDetail['messages'];
+        messageCursor: number | null;
+      }>(
+        `/api/projects/${project.id}/messages?branch=${project.activeBranchId}&before=${project.messageCursor}`,
+      );
+      if (!sequence.current.isCurrent(token)) return;
+      setProject((current) =>
+        current?.id === snapshot.id &&
+        current.activeBranchId === snapshot.activeBranchId
+          ? {
+              ...current,
+              messages: [
+                ...page.messages.filter(
+                  (m) => !current.messages.some((c) => c.id === m.id),
+                ),
+                ...current.messages,
+              ],
+              messageCursor: page.messageCursor,
+            }
+          : current,
+      );
+    } catch (e) {
+      if (sequence.current.isCurrent(token))
+        setError(
+          e instanceof Error ? e.message : 'Could not load earlier messages.',
+        );
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+  const revisionIndex: RevisionSummary[] =
+    project?.revisionIndex || project?.revisions || [];
+  const revisionRequests = useRef(new Map<string, Promise<SavedRevision>>());
+  const ensureRevision = async (id: string) => {
+    if (!project) throw new Error('Open a project first.');
+    const known = project.revisions.find((r) => r.id === id);
+    if (known) return known;
+    const key = project.id + ':' + id;
+    let pending = revisionRequests.current.get(key);
+    if (!pending) {
+      pending = api<SavedRevision>(
+        `/api/projects/${project.id}/revisions/${id}`,
+      );
+      revisionRequests.current.set(key, pending);
+    }
+    try {
+      const revision = await pending;
+      setProject((current) =>
+        current?.id === project.id
+          ? {
+              ...current,
+              revisions: [
+                ...current.revisions.filter(
+                  (r) => r.id === current.selectedRevisionId && r.id !== id,
+                ),
+                ...[
+                  ...current.revisions.filter(
+                    (r) => r.id !== id && r.id !== current.selectedRevisionId,
+                  ),
+                  revision,
+                ].slice(-39),
+              ],
+            }
+          : current,
+      );
+      return revision;
+    } finally {
+      revisionRequests.current.delete(key);
+    }
+  };
+  const [loadingRevisions, setLoadingRevisions] = useState(false);
+  const loadOlderRevisions = async () => {
+    if (!project || project.revisionCursor == null || loadingRevisions) return;
+    const token = sequence.current.current();
+    setLoadingRevisions(true);
+    try {
+      const page = await api<{
+        revisionIndex: RevisionSummary[];
+        revisionCursor: number | null;
+      }>(
+        `/api/projects/${project.id}/revisions?before=${project.revisionCursor}`,
+      );
+      if (sequence.current.isCurrent(token))
+        setProject((current) =>
+          current?.id === project.id
+            ? {
+                ...current,
+                revisionIndex: [
+                  ...page.revisionIndex,
+                  ...(current.revisionIndex || current.revisions).filter(
+                    (r) => !page.revisionIndex.some((n) => n.id === r.id),
+                  ),
+                ],
+                revisionCursor: page.revisionCursor,
+              }
+            : current,
+        );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'Could not load revision history.',
+      );
+    } finally {
+      setLoadingRevisions(false);
     }
   };
   const branch = project?.branches.find((b) => b.id === project.activeBranchId);
   const revisions =
-    project && branch ? lineage(project.revisions, branch.headRevisionId) : [];
+    project && branch ? lineage(revisionIndex, branch.headRevisionId) : [];
   const revision = project?.revisions.find(
     (r) => r.id === project.selectedRevisionId,
   );
-  const parent = project?.revisions.find((r) => r.id === revision?.parentId);
+  const parent = revisionIndex.find((r) => r.id === revision?.parentId);
   const proposal = project?.proposals.find(
     (p) => p.status === 'pending' && p.baseRevisionId === revision?.id,
   );
   return {
     project,
     projects,
+    revisionIndex,
+    ensureRevision,
+    loadOlderRevisions,
+    loadingRevisions,
+    loadingMessages,
+    loadOlderMessages,
     geometry,
     proposalGeometry,
     proposal,
@@ -248,135 +456,4 @@ export function useProjects() {
     messages: project?.messages || [],
   };
 }
-export function useProjectChat(workspace: ReturnType<typeof useProjects>) {
-  const [prompt, setPrompt] = useState(''),
-    [busy, setBusy] = useState(false),
-    [phase, setPhase] = useState('');
-  const busyRef = useRef(false),
-    controller = useRef<AbortController | null>(null),
-    retry = useRef<TurnInput | null>(null);
-  useEffect(() => () => controller.current?.abort(), []);
-  const send = async () => {
-    const text = prompt.trim();
-    if (!text || busyRef.current || workspace.loading || !workspace.project)
-      return;
-    busyRef.current = true;
-    setBusy(true);
-    setPhase('Continuing your design');
-    workspace.setError('');
-    setPrompt('');
-    const abort = new AbortController();
-    controller.current = abort;
-    let input: TurnInput | null = null;
-    try {
-      let p = workspace.project;
-      const b = p.branches.find((b) => b.id === p.activeBranchId)!;
-      if (b.headRevisionId !== p.selectedRevisionId) {
-        setPhase('Starting a design branch');
-        p = await api<ProjectDetail>(`/api/projects/${p.id}`, {
-          method: 'PATCH',
-          signal: abort.signal,
-          body: JSON.stringify({
-            action: 'fork',
-            branchId: b.id,
-            revisionId: p.selectedRevisionId,
-          }),
-        });
-        await workspace.apply(p, abort.signal);
-      }
-      input =
-        retry.current &&
-        retry.current.projectId === p.id &&
-        retry.current.branchId === p.activeBranchId &&
-        retry.current.revisionId === p.selectedRevisionId &&
-        (retry.current.proposalId ?? null) ===
-          (p.proposals.find((q) => q.status === 'pending')?.id ?? null) &&
-        retry.current.message === text
-          ? retry.current
-          : {
-              projectId: p.id,
-              branchId: p.activeBranchId,
-              revisionId: p.selectedRevisionId,
-              message: text,
-              requestId: crypto.randomUUID(),
-              proposalId:
-                p.proposals.find((q) => q.status === 'pending')?.id ?? null,
-            };
-      retry.current = input;
-      setPhase('Designing your part');
-      const result = await api<TurnResult>('/api/chat', {
-        method: 'POST',
-        signal: abort.signal,
-        body: JSON.stringify(input),
-      });
-      setPhase('Opening saved revision');
-      await workspace.apply(
-        await api<ProjectDetail>(`/api/projects/${p.id}`, {
-          signal: abort.signal,
-        }),
-        abort.signal,
-      );
-      await workspace.refreshList();
-      retry.current = null;
-      return result;
-    } catch (e) {
-      let message = e instanceof Error ? e.message : 'Generation failed.';
-      if (abort.signal.aborted && input) {
-        try {
-          const result = await api<{ status: string }>('/api/chat/cancel', {
-            method: 'POST',
-            body: JSON.stringify(input),
-          });
-          message =
-            result.status === 'completed'
-              ? 'The response finished before cancellation; the saved result has been restored.'
-              : 'Generation cancelled. The previous model is preserved.';
-        } catch {
-          message =
-            'Cancellation could not be confirmed. Reopen the project to check its saved state.';
-        }
-        retry.current = null;
-      }
-      // Reconcile an uncertain network result with the authoritative saved state.
-      let restored = false;
-      try {
-        const saved = await api<ProjectDetail>(
-          `/api/projects/${input?.projectId || workspace.project.id}`,
-        );
-        await workspace.apply(saved);
-        restored =
-          !!input &&
-          saved.messages.some(
-            (m) => m.role === 'assistant' && m.turnId === input?.requestId,
-          );
-        if (restored) {
-          retry.current = null;
-          message =
-            'The response was saved successfully. Your project has been restored.';
-        }
-      } catch {}
-      if (
-        e instanceof ApiError ||
-        /still running|already used|did not complete|changed or has/.test(
-          message,
-        )
-      )
-        retry.current = null;
-      workspace.setError(message);
-      setPrompt(restored ? '' : text);
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
-      setPhase('');
-      controller.current = null;
-    }
-  };
-  return {
-    prompt,
-    setPrompt,
-    busy,
-    phase,
-    send,
-    cancel: () => controller.current?.abort(),
-  };
-}
+export { useProjectChat } from './use-project-chat';

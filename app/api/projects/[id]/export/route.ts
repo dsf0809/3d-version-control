@@ -27,10 +27,18 @@ export async function GET(
     if (!['stl', '3mf'].includes(format))
       throw new HttpError(400, 'Choose STL, 3MF or JSON.');
     const filename = `${revision.model.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'part'}-v${revision.ordinal}.${format}`;
-    const positions = buildGeometry(revision.model).positions;
+    const compiled = buildGeometry(revision.model);
+    const positions = compiled.positions;
     return new Response(
       format === '3mf'
-        ? threeMF(positions, revision.model.name)
+        ? threeMF(
+            positions,
+            revision.model.name,
+            Array.from(
+              compiled.owners,
+              (owner) => revision.model.operations[owner].color || '#778ee0',
+            ),
+          )
         : binarySTL(positions),
       {
         headers: {

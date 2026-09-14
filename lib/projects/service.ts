@@ -1,5 +1,7 @@
+import { setTurnPhase } from './turn-status';
+import { checkLocks } from './locks';
 import { generateReply } from '../ai';
-import { buildGeometry, compareGeometry } from '../cad/geometry';
+import { validateComparison } from '../cad/geometry';
 import { HttpError } from './http';
 import { ProjectStore, validateTurn } from './store';
 import { lineage, type TurnResult } from './types';
@@ -62,6 +64,9 @@ export async function runTurn(
     const pending = branchProposals.find(
       (p) => p.id === input.proposalId && p.status === 'pending',
     );
+    const autoApply =
+      detail.approvalMode === 'auto' &&
+      !branchProposals.some((p) => p.status === 'pending');
     const editingModel = pending?.model ?? started.revision!.model;
     const referenced = new Set(
       [...input.message.matchAll(/\bv(\d+)\b/gi)].map((m) => Number(m[1])),
@@ -113,6 +118,7 @@ export async function runTurn(
       );
       await store.setConversation(input, conversationId);
     }
+    await setTurnPhase(store, input.requestId, 'generating');
     const reply = await generateReply(
       {
         messages: [{ role: 'user', content: input.message }],
@@ -122,27 +128,33 @@ export async function runTurn(
       modelName,
       signal,
       fetcher,
-      { conversationId, projectContext: context },
+      {
+        conversationId,
+        projectContext: context,
+        baseId: pending?.id ?? input.revisionId,
+        autoApply,
+      },
     );
     signal.throwIfAborted();
+    await setTurnPhase(store, input.requestId, 'validating');
     let volumeSummary = null;
     if (reply.model) {
       validateGeneratedModel(reply.model, editingModel);
-      buildGeometry(reply.model);
-      volumeSummary = compareGeometry(
-        started.revision!.model,
-        reply.model,
-      ).volumes;
+      await checkLocks(store, input.projectId, reply.model);
+      volumeSummary = validateComparison(started.revision!.model, reply.model);
     }
     signal.throwIfAborted();
+    await setTurnPhase(store, input.requestId, 'saving');
     const result: TurnResult = {
       ...reply,
-      revisionId: input.revisionId,
-      ...(reply.model ? { proposalId: crypto.randomUUID() } : {}),
+      revisionId:
+        reply.model && autoApply ? crypto.randomUUID() : input.revisionId,
+      ...(reply.model && !autoApply ? { proposalId: crypto.randomUUID() } : {}),
       branchId: input.branchId,
     };
-    if (reply.model) await saveProposal(store, input, result, volumeSummary);
-    else await store.commit(input, result, volumeSummary);
+    if (reply.model && !autoApply)
+      await saveProposal(store, input, result, volumeSummary);
+    else await store.commit(input, result, volumeSummary, autoApply);
     return result;
   } catch (error) {
     const message =

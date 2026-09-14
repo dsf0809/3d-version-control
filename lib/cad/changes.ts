@@ -25,6 +25,13 @@ export function featureChanges(before: Model, after: Model): FeatureChange[] {
         `Removed · dimensions ${vector(left.size)} mm · center ${vector(left.position)} mm`,
       );
     else {
+      if (
+        (left.color || '#778ee0').toLowerCase() !==
+        (right.color || '#778ee0').toLowerCase()
+      )
+        details.push(
+          `Color: ${left.color || '#778ee0'} → ${right.color || '#778ee0'}`,
+        );
       if (left.name !== right.name)
         details.push(`Renamed: ${left.name} → ${right.name}`);
       for (const [key, label, unit] of [
@@ -40,6 +47,15 @@ export function featureChanges(before: Model, after: Model): FeatureChange[] {
         details.push(`Shape: ${left.kind} → ${right.kind}`);
       if (left.operation !== right.operation)
         details.push(`Operation: ${left.operation} → ${right.operation}`);
+      if (
+        JSON.stringify(
+          before.relationships?.filter((l) => l.target.featureId === id) || [],
+        ) !==
+        JSON.stringify(
+          after.relationships?.filter((l) => l.target.featureId === id) || [],
+        )
+      )
+        details.push('Dimension links changed');
       if (a.indexOf(left) !== b.indexOf(right))
         details.push(
           `Operation order: ${a.indexOf(left) + 1} → ${b.indexOf(right) + 1}`,

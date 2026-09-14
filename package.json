@@ -15,7 +15,8 @@
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply DB --local --config wrangler.local.jsonc"
+    "db:migrate": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply DB --local --config wrangler.local.jsonc",
+    "test:worker:offline": "pnpm build && node --import tsx tests/generation-worker.smoke.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

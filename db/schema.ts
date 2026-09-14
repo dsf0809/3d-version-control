@@ -17,6 +17,7 @@ export const projects = sqliteTable(
     activeBranchId: text('active_branch_id').notNull(),
     selectedRevisionId: text('selected_revision_id').notNull(),
     importKey: text('import_key'),
+    approvalMode: text('approval_mode').notNull().default('review'),
     archived: integer('archived').notNull().default(0),
     dimensionLocks: text('dimension_locks').notNull().default('[]'),
     createdAt: text('created_at').notNull(),
@@ -49,6 +50,7 @@ export const branches = sqliteTable(
     parentBranchId: text('parent_branch_id'),
     forkRevisionId: text('fork_revision_id'),
     headRevisionId: text('head_revision_id').notNull(),
+    createdBy: text('created_by'),
     conversationId: text('conversation_id'),
     lockToken: text('lock_token'),
     lockUntil: integer('lock_until').notNull().default(0),
@@ -66,6 +68,8 @@ export const revisions = sqliteTable(
     branchId: text('branch_id')
       .notNull()
       .references(() => branches.id),
+    authorId: text('author_id'),
+    mergeParentId: text('merge_parent_id'),
     parentId: text('parent_id'),
     ordinal: integer('ordinal').notNull(),
     modelJson: text('model_json').notNull(),
@@ -111,6 +115,8 @@ export const turns = sqliteTable(
     proposalId: text('proposal_id'),
     prompt: text('prompt').notNull(),
     status: text('status').notNull(),
+    actorId: text('actor_id'),
+    phase: text('phase').notNull().default('context'),
     resultJson: text('result_json'),
     error: text('error'),
     createdAt: text('created_at').notNull(),
@@ -134,8 +140,35 @@ export const proposals = sqliteTable(
     prompt: text('prompt').notNull(),
     answer: text('answer').notNull(),
     summaryJson: text('summary_json').notNull(),
+    authorId: text('author_id'),
+    mergeParentId: text('merge_parent_id'),
     acceptedRevisionId: text('accepted_revision_id'),
     createdAt: text('created_at').notNull(),
   },
   (t) => [index('proposals_branch_status').on(t.branchId, t.status)],
 );
+
+export const projectMembers = sqliteTable(
+  'project_members',
+  {
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id),
+    userId: text('user_id').notNull(),
+    role: text('role').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [uniqueIndex('project_member_identity').on(t.projectId, t.userId)],
+);
+export const projectInvitations = sqliteTable('project_invitations', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id')
+    .notNull()
+    .references(() => projects.id),
+  tokenHash: text('token_hash').notNull().unique(),
+  role: text('role').notNull(),
+  expiresAt: integer('expires_at').notNull(),
+  revoked: integer('revoked').notNull().default(0),
+  usedBy: text('used_by'),
+  createdAt: text('created_at').notNull(),
+});

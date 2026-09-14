@@ -13,7 +13,13 @@ const { d1, r2 } = hostingConfig;
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 
 const localBindingConfig = {
-  main: 'vinext/server/fetch-handler',
+  main: 'workers/app.ts',
+  durable_objects: {
+    bindings: [{ name: 'GENERATION_JOBS', class_name: 'GenerationJob' }],
+  },
+  migrations: [
+    { tag: 'generation-jobs-v1', new_sqlite_classes: ['GenerationJob'] },
+  ],
   compatibility_flags: ['nodejs_compat'],
   d1_databases: d1
     ? [

@@ -14,7 +14,7 @@ export async function listShares(
   owner: string,
   projectId: string,
 ) {
-  await store.own(owner, projectId);
+  await store.own(owner, projectId, 'owner');
   return (
     await store
       .stmt(
@@ -31,6 +31,7 @@ export async function createShare(
   revisionId: string,
   allowExport: boolean,
 ) {
+  await store.own(owner, projectId, 'owner');
   const p = await store.detail(owner, projectId);
   if (
     !p.revisions.some((r) => r.id === revisionId) ||
@@ -58,7 +59,7 @@ export async function revokeShare(
   projectId: string,
   id: string,
 ) {
-  await store.own(owner, projectId);
+  await store.own(owner, projectId, 'owner');
   await store
     .stmt(
       'UPDATE shares SET revoked=1 WHERE id=? AND project_id=?',

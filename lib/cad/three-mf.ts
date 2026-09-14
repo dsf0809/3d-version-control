@@ -60,25 +60,33 @@ function zip(files: Record<string, string>): Uint8Array<ArrayBuffer> {
   return output;
 }
 const escape = (s: string) =>
-  s
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
-    .replace(
-      /[&<>"']/g,
-      (c) =>
-        ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&apos;',
-        })[c]!,
-    );
+  s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&apos;',
+      })[c]!,
+  );
 export function threeMF(
   positions: Float32Array,
   name: string,
+  faceColors?: string[],
 ): Uint8Array<ArrayBuffer> {
   if (!positions.length || positions.length % 9 || positions.length > 9000000)
     throw new Error('Invalid or oversized triangle mesh.');
+  if (
+    faceColors &&
+    (faceColors.length !== positions.length / 9 ||
+      faceColors.some((c) => !/^#[0-9a-fA-F]{6}$/.test(c)))
+  )
+    throw new Error('Invalid face colors.');
+  const palette = faceColors
+    ? [...new Set(faceColors.map((c) => c.toUpperCase()))]
+    : ['#778EE0'];
   const vertices: string[] = [],
     triangles: string[] = [],
     ids = new Map<string, number>();
@@ -103,7 +111,7 @@ export function threeMF(
     }
     if (new Set(indices).size !== 3) throw new Error('Degenerate triangle.');
     triangles.push(
-      `<triangle v1="${indices[0]}" v2="${indices[1]}" v3="${indices[2]}"/>`,
+      `<triangle v1="${indices[0]}" v2="${indices[1]}" v3="${indices[2]}"${faceColors ? ` pid="1" p1="${palette.indexOf(faceColors[i / 9].toUpperCase())}"` : ''}/>`,
     );
   }
   return zip({
@@ -111,6 +119,6 @@ export function threeMF(
       '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>',
     '_rels/.rels':
       '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>',
-    '3D/3dmodel.model': `<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><metadata name="Title">${escape(name)}</metadata><resources><basematerials id="1"><base name="Form blue" displaycolor="#778EE0FF"/></basematerials><object id="2" type="model" name="${escape(name)}" pid="1" pindex="0"><mesh><vertices>${vertices.join('')}</vertices><triangles>${triangles.join('')}</triangles></mesh></object></resources><build><item objectid="2"/></build></model>`,
+    '3D/3dmodel.model': `<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><metadata name="Title">${escape(name)}</metadata><resources><basematerials id="1">${palette.map((c, i) => `<base name="${i === 0 ? 'Form blue' : 'Feature color ' + i}" displaycolor="${c}FF"/>`).join('')}</basematerials><object id="2" type="model" name="${escape(name)}" pid="1" pindex="0"><mesh><vertices>${vertices.join('')}</vertices><triangles>${triangles.join('')}</triangles></mesh></object></resources><build><item objectid="2"/></build></model>`,
   });
 }

@@ -1,5 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
+import TemplatePicker from './template-picker';
+import {
+  createTemplate,
+  templates,
+  type TemplateId,
+} from '@/lib/cad/templates';
 import type { useProjects } from '@/lib/projects/client';
 export default function ProjectSidebar({
   workspace,
@@ -13,12 +19,16 @@ export default function ProjectSidebar({
   const [archived, setArchived] = useState(false);
   const [mode, setMode] = useState<'new' | 'rename' | null>(null);
   const [name, setName] = useState('');
+  const [template, setTemplate] = useState<TemplateId>('tray');
+  const [dimensions, setDimensions] = useState({
+    ...templates.tray.dimensions,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
     try {
       setCollapsed(
-        window.matchMedia('(max-width: 700px)').matches ||
+        window.matchMedia('(max-width: 1000px)').matches ||
           localStorage.getItem('form-sidebar-collapsed') === 'true',
       );
     } catch {}
@@ -158,7 +168,7 @@ export default function ProjectSidebar({
               </small>
               <button
                 className="quiet"
-                disabled={disabled}
+                disabled={disabled || workspace.project?.role !== 'owner'}
                 onClick={() => {
                   setMode('rename');
                   setName(workspace.project!.name);
@@ -168,7 +178,7 @@ export default function ProjectSidebar({
               </button>
               <button
                 className="quiet"
-                disabled={disabled}
+                disabled={disabled || workspace.project?.role !== 'owner'}
                 onClick={() =>
                   void perform(async () => {
                     const value = !workspace.project!.archived;
@@ -193,6 +203,7 @@ export default function ProjectSidebar({
                 void perform(async () => {
                   if (mode === 'new') {
                     await workspace.create({
+                      startingModel: createTemplate(template, dimensions),
                       name,
                       brief: '',
                       requirements: '',
@@ -219,6 +230,17 @@ export default function ProjectSidebar({
                   onChange={(e) => setName(e.target.value)}
                 />
               </label>
+              {mode === 'new' && (
+                <TemplatePicker
+                  value={template}
+                  dimensions={dimensions}
+                  onChange={(id, d) => {
+                    setTemplate(id);
+                    setDimensions(d);
+                  }}
+                  disabled={disabled}
+                />
+              )}
               <button className="quiet" disabled={disabled || !name.trim()}>
                 Save
               </button>

@@ -41,6 +41,7 @@ export async function setDimensionLock(
     locked: boolean;
   },
 ) {
+  await store.own(owner, projectId, 'owner');
   const p = await store.detail(owner, projectId);
   if (![0, 1, 2].includes(body.axis) || typeof body.locked !== 'boolean')
     throw new HttpError(400, 'Choose a dimension and lock state.');

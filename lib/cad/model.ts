@@ -1,5 +1,11 @@
+import {
+  resolveRelationships,
+  relationshipSchema,
+  type DimensionLink,
+} from './relationships';
 export type Vec3 = [number, number, number];
 export type Operation = {
+  color?: string;
   id?: string;
   name: string;
   kind: 'box' | 'cylinder' | 'sphere';
@@ -9,6 +15,7 @@ export type Operation = {
   rotation: Vec3;
 };
 export type Model = {
+  relationships?: DimensionLink[];
   schemaVersion?: 2;
   name: string;
   operations: Operation[];
@@ -23,8 +30,9 @@ const vectorSchema = {
 export const modelSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['schemaVersion', 'name', 'operations'],
+  required: ['schemaVersion', 'name', 'operations', 'relationships'],
   properties: {
+    relationships: relationshipSchema,
     schemaVersion: { type: 'integer', enum: [2] },
     name: { type: 'string' },
     operations: {
@@ -42,8 +50,10 @@ export const modelSchema = {
           'size',
           'position',
           'rotation',
+          'color',
         ],
         properties: {
+          color: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' },
           id: { type: 'string' },
           name: { type: 'string' },
           kind: { type: 'string', enum: ['box', 'cylinder', 'sphere'] },
@@ -66,7 +76,7 @@ export const replySchema = {
   },
 };
 export function validateModel(value: unknown): Model {
-  const m = value as Model;
+  let m = value as Model;
   if (
     !m ||
     typeof m.name !== 'string' ||
@@ -78,6 +88,7 @@ export function validateModel(value: unknown): Model {
     throw new Error(
       'The model must contain between 1 and 48 solid operations.',
     );
+  m = resolveRelationships(m);
   if (m.schemaVersion != null && m.schemaVersion !== 2)
     throw new Error('Unsupported model schema version.');
   const ids = new Set<string>();
@@ -106,6 +117,11 @@ export function validateModel(value: unknown): Model {
     }
     if (p.size.some((n) => n < 0.2 || n > 500))
       throw new Error('Solid dimensions must be between 0.2 and 500 mm.');
+    if (
+      p.color != null &&
+      (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color))
+    )
+      throw new Error('Use a six-digit hex feature color.');
     if (m.schemaVersion === 2 && !p.id)
       throw new Error('Version 2 models require feature IDs.');
     if (p.id != null) {

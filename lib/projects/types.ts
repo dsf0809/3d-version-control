@@ -1,6 +1,8 @@
 import type { Model } from '../cad/model';
 import type { Revision } from '../cad/history';
 export type SavedRevision = Revision & {
+  authorId?: string | null;
+  mergeParentId?: string | null;
   branchId: string;
   ordinal: number;
   answer: string;
@@ -16,6 +18,8 @@ export type SavedMessage = {
   revisionId: string;
 };
 export type Branch = {
+  createdBy?: string;
+  canEdit?: boolean;
   id: string;
   name: string;
   headRevisionId: string;
@@ -24,6 +28,8 @@ export type Branch = {
   conversationReady: boolean;
 };
 export type ProjectSummary = {
+  role?: 'owner' | 'editor' | 'viewer';
+  approvalMode: 'review' | 'auto';
   archived: boolean;
   id: string;
   name: string;
@@ -34,6 +40,9 @@ export type ProjectSummary = {
   updatedAt: string;
 };
 export type ProjectDetail = ProjectSummary & {
+  messageCursor?: number | null;
+  revisionIndex?: import('./revisions').RevisionSummary[];
+  revisionCursor?: number | null;
   dimensionLocks: import('./locks').DimensionLock[];
   proposals: Proposal[];
   branches: Branch[];
@@ -49,6 +58,7 @@ export type TurnInput = {
   message: string;
 };
 export type TurnResult = {
+  mergeParentId?: string;
   proposalId?: string;
   message: string;
   model: Model | null;
@@ -56,6 +66,8 @@ export type TurnResult = {
   branchId: string;
 };
 export type Proposal = {
+  authorId?: string | null;
+  mergeParentId?: string | null;
   id: string;
   branchId: string;
   baseRevisionId: string;
@@ -68,9 +80,12 @@ export type Proposal = {
   acceptedRevisionId: string | null;
   summary: { added: number; removed: number; unchanged: number };
 };
-export function lineage(revisions: SavedRevision[], headId: string) {
+export function lineage<T extends { id: string; parentId: string | null }>(
+  revisions: T[],
+  headId: string,
+) {
   const byId = new Map(revisions.map((r) => [r.id, r]));
-  const result: SavedRevision[] = [];
+  const result: T[] = [];
   const seen = new Set<string>();
   let id: string | null = headId;
   while (id && !seen.has(id)) {

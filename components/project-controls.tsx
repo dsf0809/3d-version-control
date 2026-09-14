@@ -1,4 +1,6 @@
 'use client';
+import ProjectTeam from './project-team';
+import BranchMerge from './branch-merge';
 import { useState } from 'react';
 import { FolderOpen, Plus, GitBranch, Pencil } from 'lucide-react';
 import {
@@ -94,7 +96,7 @@ export default function ProjectControls({
         {project && (
           <button
             className="quiet"
-            disabled={busy || workspace.loading}
+            disabled={busy || workspace.loading || project.role === 'viewer'}
             title="Create a branch from this revision"
             onClick={() =>
               void workspace
@@ -110,6 +112,21 @@ export default function ProjectControls({
             <span className="branch-label">New branch</span>
           </button>
         )}
+        {project && (
+          <button
+            className="quiet"
+            disabled={busy || workspace.loading}
+            title="Load the latest accepted revision and proposals on this branch"
+            onClick={() =>
+              void workspace
+                .mutate({ action: 'select', branchId: project.activeBranchId })
+                .catch(() => {})
+            }
+          >
+            Refresh branch
+          </button>
+        )}
+        <BranchMerge workspace={workspace} busy={busy} />
       </div>
       <Dialog
         open={open}
@@ -130,6 +147,13 @@ export default function ProjectControls({
               ? 'The design assistant receives this brief and these requirements with every request.'
               : 'Reopen a saved design with its conversations and model revisions.'}
           </DialogDescription>
+          {project && editing === 'edit' && (
+            <ProjectTeam
+              key={project.id}
+              projectId={project.id}
+              owner={project.role === 'owner'}
+            />
+          )}
           {editing ? (
             <form
               className="project-form"
@@ -141,6 +165,7 @@ export default function ProjectControls({
               <label>
                 Project name
                 <input
+                  readOnly={editing === 'edit' && project?.role !== 'owner'}
                   required
                   maxLength={120}
                   value={name}
@@ -150,6 +175,7 @@ export default function ProjectControls({
               <label>
                 Design brief
                 <textarea
+                  readOnly={editing === 'edit' && project?.role !== 'owner'}
                   rows={3}
                   maxLength={4000}
                   value={brief}
@@ -160,6 +186,7 @@ export default function ProjectControls({
               <label>
                 Requirements
                 <textarea
+                  readOnly={editing === 'edit' && project?.role !== 'owner'}
                   rows={4}
                   maxLength={8000}
                   value={requirements}
@@ -183,7 +210,11 @@ export default function ProjectControls({
                 </button>
                 <button
                   className="quiet primary"
-                  disabled={saving || !name.trim()}
+                  disabled={
+                    saving ||
+                    !name.trim() ||
+                    (editing === 'edit' && project?.role !== 'owner')
+                  }
                 >
                   {saving ? 'Saving…' : 'Save project'}
                 </button>

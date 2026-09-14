@@ -1,3 +1,5 @@
+import { jobFor } from '@/lib/projects/jobs-binding';
+import { validateTurn } from '@/lib/projects/store';
 import { projectStore } from '@/lib/projects/db';
 import {
   ownerOf,
@@ -6,7 +8,6 @@ import {
   failure,
   HttpError,
 } from '@/lib/projects/http';
-import { runTurn } from '@/lib/projects/service';
 export async function POST(request: Request) {
   try {
     const owner = ownerOf(request);
@@ -17,20 +18,14 @@ export async function POST(request: Request) {
         503,
         'Connect an OpenAI API key on the server to start chatting. Open AI connection for setup instructions.',
       );
-    const signal = AbortSignal.any([
-      request.signal,
-      AbortSignal.timeout(120000),
-    ]);
-    return json(
-      await runTurn(
-        projectStore(),
-        owner,
-        body,
-        key,
-        process.env.OPENAI_MODEL || 'gpt-6-astra',
-        signal,
-      ),
+    const input = validateTurn(body);
+    await projectStore().assertBranchWrite(
+      owner,
+      input.projectId,
+      input.branchId,
     );
+    await jobFor(owner, input.requestId).enqueue(owner, input);
+    return json({ queued: true, requestId: input.requestId }, 202);
   } catch (error) {
     return failure(error);
   }
