@@ -442,3 +442,6 @@ were not pushed or deployed. No secrets were changed and no AI calls were made.
 - [ ] Browser interaction verification of the Change details panel. No paid API calls.
 
 - [x] Change entry titles now match detail text at 12px, with bold weight. Build passed; private staging version 6 published successfully.
+
+## GitHub checkpoint
+- [x] Committed and pushed the architecture, collaboration and latest responsive viewer updates to GitHub main as ed2b13e. All 79 offline tests and whitespace checks passed; secret-pattern scan found no matches. No paid API calls or new site deployment in this step.
