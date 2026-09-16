@@ -511,3 +511,6 @@ were not pushed or deployed. No secrets were changed and no AI calls were made.
   82 offline tests, type checking and production build.
 - Commit/push requested. Browser guide verification remains pending; no hosted
   deployment or paid AI calls. Next: commit this batch and push to origin/main.
+- [x] Implementation committed and pushed to origin/main as d4c3fe0. This
+  follow-up records the successful push. Next: browser verification of the guide;
+  hosted deployment remains unchanged.
