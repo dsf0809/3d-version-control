@@ -17,6 +17,7 @@ import { Box, Settings2 } from 'lucide-react';
 import FeatureProperties from './feature-properties';
 import WorkspaceChat from './workspace-chat';
 import WorkspaceModel from './workspace-model';
+import FirstProjectGuide from './first-project-guide';
 export default function Workshop() {
   const state = useWorkshop();
   const [compactPanel, setCompactPanel] = useState<'model' | 'chat'>('model');
@@ -89,6 +90,10 @@ export default function Workshop() {
               form<span>.</span>
             </strong>
           </a>
+          <FirstProjectGuide workspace={workspace} busy={busy} onOpenTool={(next) => {
+            setCompactPanel('model');
+            setTool(next);
+          }} />
           <div className="project-actions"><ProjectControls workspace={workspace} busy={busy} /></div>
           <button className="quiet" onClick={() => setSetup(true)}>
             <span

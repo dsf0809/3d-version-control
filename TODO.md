@@ -457,3 +457,57 @@ were not pushed or deployed. No secrets were changed and no AI calls were made.
 - [ ] Hosted form and live AI verification remain pending; no real API key or paid test used. Local app may need restart to load its newly generated encryption secret.
 
 - [x] GitHub main updated with all pending API connection and export changes in de6d90d. Verified 82 offline tests and clean whitespace; private environment and local database remain excluded.
+
+## Local startup verification — 2026-09-14
+
+- [x] Read the project tracker, README, scripts, app entry point, database binding
+  and background worker configuration. Confirmed the existing port-3000 server
+  belongs to this checkout and returns HTTP 200. Local migrations are current
+  (`pnpm db:migrate`: no migrations to apply).
+- [x] Opened localhost in the browser and completed development sign-in.
+  No paid AI requests, commit, push or hosted deployment performed.
+- Next action: use the local workshop; full functional regression testing is
+  outside this startup check.
+- Browser startup verification completed: saved project list, selected branch,
+  V0/V1 history, interactive tray model and export controls loaded successfully.
+
+## ResizeObserver correction — 2026-09-14
+
+- [x] Viewer resize notifications now coalesce into an animation frame, avoiding
+  canvas writes during observer delivery. CSS controls display size; drawing-buffer
+  updates skip unchanged dimensions. Pending resize work is cancelled on disposal.
+- [x] Four camera/scheduler regression tests, type checking and production build
+  passed. Existing bundle-size warning remains; no paid AI calls.
+- Remaining limit: the reported browser sequence is unspecified; reproduction of
+  that exact interaction is pending. Next: run offline checks. Local changes only.
+
+## Revision list explanation — 2026-09-14
+
+- [x] Traced revision-strip data: `client.ts` filters the project revision index
+  to the selected branch's parent lineage. Comparison selectors use the whole
+  loaded project index. The “Saved in this project” label is therefore misleading.
+- Demo seed contains V0/V1. Branches do not themselves create revisions, and
+  pending proposals are separate from accepted history. This was code inspection;
+  current database counts were not verified (read-only SQLite open failed).
+- Next action: consider explicit branch-history labeling and an all-project
+  history view. No application code change, commit or deployment in this step.
+
+## Guided first project — 2026-09-14
+
+- [x] Added an optional top-bar guide: choose a tray/enclosure/bracket, set validated
+  millimeter dimensions, name and save the project as V0. Reuses existing template
+  and project APIs without AI calls. Back/cancel, suggested-size reset, save errors
+  and duplicate-submit protection included; completion links open edit/export tools.
+- [x] All 82 offline tests, type checking and production build passed. Local page
+  returns HTTP 200. Existing bundle-size warning remains.
+- [ ] Browser interaction verification of the new guide remains pending.
+- Local-only request; no commit or hosted deployment. Next: try the guide locally
+  and verify its full browser flow.
+
+## Git checkpoint — 2026-09-15
+
+- [x] Reviewed the pending guided-project flow, viewer resize fix and progress notes.
+  Whitespace checks pass; the unchanged application source previously passed all
+  82 offline tests, type checking and production build.
+- Commit/push requested. Browser guide verification remains pending; no hosted
+  deployment or paid AI calls. Next: commit this batch and push to origin/main.

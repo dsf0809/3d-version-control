@@ -300,15 +300,21 @@ export function createViewer(
       });
     },
   };
+  let viewportWidth = 0;
   let viewportHeight = 0;
   let normalCenter: { x: number; y: number } | null = null;
   const resize = () => {
     const w = host.clientWidth,
       h = host.clientHeight;
     if (!w || !h) return;
-    renderer.setSize(w, h);
+    // CSS owns the displayed size. Only resize the drawing buffer when needed;
+    // writing canvas styles here can feed back into the observed layout.
+    if (w !== viewportWidth || h !== viewportHeight) {
+      renderer.setSize(w, h, false);
+    }
     invalidate();
     resizeCamera(camera, w, h, viewportHeight);
+    viewportWidth = w;
     viewportHeight = h;
     const bounds = host.getBoundingClientRect();
     const panel =
@@ -333,7 +339,17 @@ export function createViewer(
       );
     }
   };
-  const observer = new ResizeObserver(resize);
+  // Leave ResizeObserver delivery before changing the canvas. Coalesce bursts
+  // into one frame, measuring the latest layout rather than a stale entry.
+  const resizeScheduler = createRenderScheduler(
+    () => {
+      resize();
+      return false;
+    },
+    requestAnimationFrame,
+    cancelAnimationFrame,
+  );
+  const observer = new ResizeObserver(resizeScheduler.invalidate);
   observer.observe(host);
   resize();
   fit();
@@ -351,6 +367,7 @@ export function createViewer(
     renderer.domElement.removeEventListener('webglcontextlost', lost);
     controls.removeEventListener('change', invalidate);
     observer.disconnect();
+    resizeScheduler.dispose();
     controls.dispose();
     scene.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {

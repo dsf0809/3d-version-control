@@ -997,3 +997,29 @@ body {
 }
 
 .viewer-change-list > button > strong { font-size:12px; line-height:1.5; font-weight:700; overflow-wrap:anywhere; }
+
+/* A short, optional path from a useful starting shape to a saved project. */
+.first-project-guide { padding: 28px; }
+.guide-eyebrow { color: #526cba; font-size: 11px; font-weight: 700; letter-spacing: .08em; padding-right: 24px; }
+.guide-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 8px 0 20px; }
+.guide-choice { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; text-align: left; padding: 16px 12px; border: 1px solid #dce1eb; border-radius: 12px; background: #f8f9fc; }
+.guide-choice[aria-pressed='true'] { border-color: #315ce8; background: #edf2ff; box-shadow: inset 0 0 0 1px #315ce8; }
+.guide-choice span, .guide-hint, .guide-next span { font-size: 12px; line-height: 1.6; color: #647084; }
+.guide-dimensions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.guide-dimensions label, .guide-name { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+.guide-dimensions input, .guide-name input { width: 100%; min-width: 0; border: 1px solid #ccd4e2; border-radius: 8px; padding: 10px; background: white; color: #263248; }
+.guide-hint { margin: 16px 0; }
+.guide-summary { display: flex; flex-direction: column; gap: 6px; border-radius: 12px; padding: 16px; background: #f1f4fa; margin-top: 16px; }
+.guide-next { display: grid; gap: 10px; }
+.guide-next button { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 16px; border: 1px solid #dce1eb; border-radius: 12px; }
+.guide-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.guide-primary { padding: 10px 18px; border-radius: 9px; background: #315ce8; color: white; font-weight: 600; }
+.guide-primary:disabled { opacity: .5; cursor: not-allowed; }
+.guide-error { color: #b12e40; margin-top: 12px; }
+.first-project-guide button:focus-visible, .first-project-guide input:focus-visible { outline: 2px solid #315ce8; outline-offset: 3px; }
+@media (max-width: 540px) {
+  .first-project-guide { padding: 22px 18px; }
+  .guide-choices { grid-template-columns: 1fr; }
+  .guide-choice { gap: 6px; padding: 12px; }
+  .guided-launch { font-size: 12px; }
+}
