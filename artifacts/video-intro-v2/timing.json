@@ -1,0 +1,25 @@
+{
+  "duration": 17.176833333333335,
+  "lines": [
+    {
+      "start": 0.5,
+      "end": 3.695291666666667,
+      "text": "I've been building a little 3D design tool called Form."
+    },
+    {
+      "start": 4.245291666666667,
+      "end": 7.400916666666667,
+      "text": "You can start with a simple part, and try out an idea."
+    },
+    {
+      "start": 7.950916666666667,
+      "end": 12.739833333333333,
+      "text": "Move a divider. Then see exactly what's changed, before saving a new version."
+    },
+    {
+      "start": 13.289833333333334,
+      "end": 16.176833333333335,
+      "text": "It's still a work in progress. Let me show you around."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+<template><div class="scene" data-composition-id="hero" data-duration="3.75" data-width="1920" data-height="1080"><div id="hero-visual" class="visual"><div class="stage"><div class="stage-label">FROM AN IDEA TO A REAL PART</div><div class="media-wrap"><div id="hero-camera" class="camera" data-layout-allow-overflow><video class="video cover" id="hero-model" src="assets/hero-motion.mp4" data-start="0" data-duration="3.75" muted playsinline></video></div></div></div></div><aside id="hero-copy" class="aside"><p class="eyebrow">Meet Form</p><h1 class="headline"><span class="line ">Make.</span><span class="line ">Change.</span><span class="line blue">Create.</span></h1><div class="points"><p class="point ">Simple 3D parts</p><p class="point ">Every iteration, saved</p></div></aside></div><script>const tl=gsap.timeline({paused:true});const beat=0.46875;
+ tl.fromTo('#hero-visual',{scale:1.08,opacity:1},{scale:1,opacity:1,duration:.5,ease:'circ.out'},0);
+ tl.fromTo('#hero-copy .eyebrow',{x:26,opacity:0},{x:0,opacity:1,duration:.28,ease:'power3.out'},.05);
+ tl.fromTo('#hero-copy .line',{y:50,opacity:0,rotation:2},{y:0,opacity:1,rotation:0,duration:.4,stagger:beat/2,ease:'power4.out'},.1);
+ if ('hero' !== 'close') { tl.fromTo('#hero-copy .point',{x:40,opacity:0},{x:0,opacity:1,duration:.32,stagger:beat/2,ease:'power3.out'},beat*1.5); }
+ 
+ tl.fromTo('#hero-camera',{scale:1.2,x:-45},{scale:1.02,x:0,duration:1.35,ease:'power3.out'},0);
+ tl.to('#hero-camera',{scale:1.12,x:-15,duration:1.75,ease:'sine.inOut'},1.875);
+
+ window.__timelines['hero']=tl;</script></template>

@@ -15,6 +15,13 @@ basic solids. Start with the included tray demo—no API key needed.
 > and physical printing validation remain release checks. See [TODO.md](TODO.md)
 > for current progress and outstanding work.
 
+## Watch the demo
+
+[**Introducing Form: 3D Design with AI and Version Control**](https://youtu.be/BY60m1mSoms)
+
+A short walkthrough of guided setup, dimension controls, AI-assisted editing,
+version comparisons, and STL/3MF export.
+
 ## Try the comparison demo
 
 After starting the app locally:
@@ -285,3 +292,9 @@ starting substantial work and open an issue to discuss the scope.
 
 Licensed under the [MIT License](LICENSE). Third-party dependencies retain their
 own licenses.
+
+## Media and branding
+
+- [Logo (SVG)](artifacts/logo/form-logo.svg) · [Transparent PNG](artifacts/logo/form-logo.png)
+- [YouTube banner](artifacts/branding/form-youtube-banner.png) · [Editable SVG](artifacts/branding/form-youtube-banner.svg)
+- [Video production sources](artifacts/README.md)

@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=1920,height=1080"><title>Form — Make. Compare. Improve.</title><script src="assets/gsap.min.js"></script><style>
+@font-face{font-family:Arial;src:url('assets/Arial.ttf') format('truetype');font-weight:400}
+@font-face{font-family:Arial;src:url('assets/Arial-Bold.ttf') format('truetype');font-weight:700}
+*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#202830;font-family:Arial,sans-serif}
+#root{width:100%;height:100%;position:relative;overflow:hidden}
+.clip{position:absolute;inset:0}.base{background:#f5f6f8}
+.brand{position:absolute;left:76px;top:59px;display:flex;align-items:center;gap:16px;font-size:65px;font-weight:700;letter-spacing:-4px}
+.brand img{width:54px;height:54px}.brand .dot{color:#315ce8}
+.descriptor{position:absolute;right:82px;top:91px;font-size:23px;letter-spacing:2.8px;color:#67717d}
+.header-rule{position:absolute;left:76px;right:76px;top:164px;height:1px;background:#dce1e6}
+.form-scene{position:relative;width:100%;height:100%;overflow:hidden}
+.visual{position:absolute;left:76px;top:224px;width:1088px;height:670px;perspective:1800px}
+.stage{position:absolute;inset:0;border-radius:14px;background:rgba(49,92,232,.04);border:1.5px solid rgba(49,92,232,.2);overflow:hidden}
+.media-shell{position:absolute;left:22px;top:75px;width:1044px;height:575px;overflow:hidden;border-radius:12px}
+.screen-video{width:100%;height:100%;object-fit:cover;display:block}
+.stage-label{position:absolute;top:25px;left:29px;font-size:22px;font-weight:700;color:#315ce8;letter-spacing:.3px}
+.stage-sub{position:absolute;right:27px;top:28px;font-size:17px;color:#202830}
+.stage-media{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain}
+.capture{position:absolute;object-fit:contain;display:block;border-radius:12px}
+.float-card{position:absolute;left:150px;top:70px;width:790px;height:550px;display:flex;align-items:center;justify-content:center}
+.float-card img{max-width:100%;max-height:100%;display:block;border-radius:12px}
+.panel-label{position:absolute;left:30px;top:26px;font-size:22px;letter-spacing:.4px;color:#315ce8;font-weight:700}
+.aside{position:absolute;left:1236px;top:265px;width:608px}
+.eyebrow{font-size:22px;letter-spacing:3px;color:#315ce8;font-weight:700;margin:0 0 28px;text-transform:uppercase}
+.headline{font-size:78px;line-height:1.02;letter-spacing:-3.6px;font-weight:700;margin:0 0 37px}
+.headline span{display:block}.headline .blue{color:#315ce8}
+.points{--hf-panel-open:1;overflow:hidden;max-height:calc(var(--hf-panel-open)*380px);opacity:var(--hf-panel-open)}
+.point{font-size:29px;line-height:1.38;margin:0 0 20px;color:#67717d;display:flex;align-items:flex-start;gap:15px}
+.point::before{content:'';flex:0 0 8px;width:8px;height:8px;border-radius:100%;background:#315ce8;margin-top:15px}
+.point.green::before{background:#059669}.point.red::before{background:#dc2626}
+.point.green{color:#04724f}.point.red{color:#b52323}
+.footnote{font-size:21px;line-height:1.4;color:#67717d;margin-top:33px}
+.footer{position:absolute;left:76px;right:76px;bottom:49px;height:68px}
+.steps{display:flex;gap:12px;align-items:center}.step{font-size:22px;padding:11px 23px;border-radius:100px;color:#67717d;background:transparent}
+.step-dot{font-size:18px;color:#67717d}.footer-tag{position:absolute;right:0;top:13px;font-size:21px;color:#67717d}
+.progress-track{position:absolute;left:76px;right:76px;bottom:31px;height:4px;background:rgba(49,92,232,.10)}
+.progress-fill{height:4px;width:100%;background:#315ce8;transform-origin:left center}
+.badge{position:absolute;left:29px;bottom:23px;display:flex;align-items:center;gap:12px;color:#315ce8;font-size:22px;font-weight:700}
+.badge .pill{background:white;padding:11px 19px;border-radius:100px;border:1px solid #dce1e6}
+.model-close{width:100%;height:100%;object-fit:cover}
+.url{font-size:24px;line-height:1.5;color:#315ce8;margin-top:34px;word-break:normal}
+.end-action{display:inline-block;padding:15px 24px;background:#315ce8;color:#f5f6f8;border-radius:100px;font-size:25px;margin-top:10px}
+</style></head><body><div data-hf-id="hf-aqky" id="root" data-composition-id="form-launch" data-width="1920" data-height="1080" data-duration="36"><div data-hf-id="hf-mih6" id="ground" class="clip base"></div><div data-hf-id="hf-dphg" id="hero" class="clip" data-composition-id="hero" data-composition-src="compositions/frames/hero.html" data-start="0" data-duration="4" data-track-index="1"></div>
+<div data-hf-id="hf-1dkq" id="guide" class="clip" data-composition-id="guide" data-composition-src="compositions/frames/guide.html" data-start="4" data-duration="6" data-track-index="1"></div>
+<div data-hf-id="hf-x0gl" id="edit" class="clip" data-composition-id="edit" data-composition-src="compositions/frames/edit.html" data-start="10" data-duration="6" data-track-index="1"></div>
+<div data-hf-id="hf-j3zc" id="compare" class="clip" data-composition-id="compare" data-composition-src="compositions/frames/compare.html" data-start="16" data-duration="8" data-track-index="1"></div>
+<div data-hf-id="hf-y56m" id="export" class="clip" data-composition-id="export" data-composition-src="compositions/frames/export.html" data-start="24" data-duration="8" data-track-index="1"></div>
+<div data-hf-id="hf-k7ix" id="close" class="clip" data-composition-id="close" data-composition-src="compositions/frames/close.html" data-start="32" data-duration="4" data-track-index="1"></div><div data-hf-id="hf-qx5r" id="chrome" class="clip" style="pointer-events:none"><div data-hf-id="hf-oojr" class="brand"><img data-hf-id="hf-gpzn" src="assets/brand-cube.svg"><span data-hf-id="hf-f2kr">form<span data-hf-id="hf-6jgg" class="dot">.</span></span></div><div data-hf-id="hf-zc7n" class="descriptor">3D DESIGN · VERSION HISTORY</div><div data-hf-id="hf-wjp6" class="header-rule"></div><div data-hf-id="hf-yh7l" class="footer"><div data-hf-id="hf-70xd" class="steps"><span data-hf-id="hf-pq29" id="nav-start" class="step">Start</span><span data-hf-id="hf-c5yu" class="step-dot">/</span><span data-hf-id="hf-oazl" id="nav-edit" class="step">Edit</span><span data-hf-id="hf-7m3e" class="step-dot">/</span><span data-hf-id="hf-efol" id="nav-compare" class="step">Compare</span><span data-hf-id="hf-80ef" class="step-dot">/</span><span data-hf-id="hf-c18h" id="nav-export" class="step">Export</span></div><div data-hf-id="hf-91te" class="footer-tag">Simple parts. Clear changes.</div></div><div data-hf-id="hf-lxwj" class="progress-track"><div data-hf-id="hf-n7ma" id="progress" class="progress-fill"></div></div></div><audio data-hf-id="hf-pr0z" id="music" src="assets/music.wav" data-start="0" data-duration="36" data-track-index="4" data-volume="1"></audio></div><script>const tl=gsap.timeline({paused:true});
+tl.fromTo('#progress',{scaleX:0},{scaleX:1,duration:36,ease:'none'},0);
+tl.to('#nav-start',{backgroundColor:'#315ce8',color:'#f5f6f8',duration:.3}, 4);
+tl.to('#nav-start',{backgroundColor:'rgba(49,92,232,0)',color:'#67717d',duration:.3}, 10);
+tl.to('#nav-edit',{backgroundColor:'#315ce8',color:'#f5f6f8',duration:.3}, 10);
+tl.to('#nav-edit',{backgroundColor:'rgba(49,92,232,0)',color:'#67717d',duration:.3}, 16);
+tl.to('#nav-compare',{backgroundColor:'#315ce8',color:'#f5f6f8',duration:.3}, 16);
+tl.to('#nav-compare',{backgroundColor:'rgba(49,92,232,0)',color:'#67717d',duration:.3}, 24);
+tl.to('#nav-export',{backgroundColor:'#315ce8',color:'#f5f6f8',duration:.3}, 24);
+tl.to('#nav-export',{backgroundColor:'rgba(49,92,232,0)',color:'#67717d',duration:.3}, 32);
+window.__timelines['form-launch']=tl;</script></body></html>

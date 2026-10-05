@@ -1,0 +1,38 @@
+{
+  "duration": 33.75,
+  "fps": 60,
+  "bpm": 128,
+  "voiceover": false,
+  "scenes": [
+    {
+      "id": "hero",
+      "start": 0,
+      "duration": 3.75
+    },
+    {
+      "id": "guide",
+      "start": 3.75,
+      "duration": 5.625
+    },
+    {
+      "id": "edit",
+      "start": 9.375,
+      "duration": 5.625
+    },
+    {
+      "id": "compare",
+      "start": 15,
+      "duration": 7.5
+    },
+    {
+      "id": "export",
+      "start": 22.5,
+      "duration": 7.5
+    },
+    {
+      "id": "close",
+      "start": 30,
+      "duration": 3.75
+    }
+  ]
+}

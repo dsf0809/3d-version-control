@@ -1,0 +1,26 @@
+{
+  "duration": 10,
+  "source": "/Users/sifeidu/Desktop/Coding/3D Version Control/artifacts/video-intro-v3/edit/workshop-source.webm",
+  "source_start": 1.3,
+  "source_end": 11.3,
+  "picture": "Actual local workshop recording; tray orbit only.",
+  "voice": "Exact approved intro, Kokoro af_heart, speed 1.02; no temporal retiming.",
+  "captions": [
+    {
+      "start": 0.0,
+      "end": 3.12,
+      "text": "Hey, I\u2019ve been working on a small project called Form."
+    },
+    {
+      "start": 3.12,
+      "end": 7.86,
+      "text": "It\u2019s a tool for making simple 3D parts\nand keeping track of the changes you make."
+    },
+    {
+      "start": 7.86,
+      "end": 10.0,
+      "text": "Let me show you how it works."
+    }
+  ],
+  "music": "Original locally synthesized instrumental from v2; 19 dB below narration before mastering."
+}

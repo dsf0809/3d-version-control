@@ -1,0 +1,11 @@
+<template><div data-hf-id="hf-15fe" id="edit-root" class="form-scene" data-composition-id="edit" data-duration="6" data-width="1920" data-height="1080"><div data-hf-id="hf-lb9f" id="edit-visual" class="visual"><div data-hf-id="hf-tan6" class="stage"><div data-hf-id="hf-1yjb" class="panel-label">DIRECT CONTROLS + AI ASSISTANCE</div><div data-hf-id="hf-0vvr" id="edit-direct" class="float-card"><img data-hf-id="hf-1bmu" src="assets/edit-dimensions.png" style="height:550px"></div><div data-hf-id="hf-gls1" id="edit-ai" style="position:absolute;left:164px;top:103px;width:760px"><p data-hf-id="hf-bykf" style="margin:0 0 18px;font-size:26px;color:#202830;font-weight:700">Describe a change</p><img data-hf-id="hf-akek" src="assets/assistant-input.png" style="width:760px;height:400px;object-fit:cover;object-position:top;display:block;border-radius:14px"><p data-hf-id="hf-0w8p" style="margin-top:16px;font-size:20px;color:#202830">Example request · review the proposal before saving</p></div></div></div><aside data-hf-id="hf-3okz" id="edit-copy" class="aside"><p data-hf-id="hf-g4yu" class="eyebrow">02 / Make changes</p><h1 data-hf-id="hf-3ubu" class="headline"><span data-hf-id="hf-b2x4">Make it</span><span data-hf-id="hf-qc90" class="blue">your own.</span></h1><div data-hf-id="hf-pzf5" id="edit-points" class="points"><p data-hf-id="hf-n2wh" class="point">Adjust dimensions directly</p><p data-hf-id="hf-a9f3" class="point">Describe changes to the AI</p></div></aside></div><script>const tl=gsap.timeline({paused:true});
+    tl.fromTo('#edit-visual',{opacity:0,x:40,rotationY:-3},{opacity:1,x:0,rotationY:0,duration:.65,ease:'power3.out'},.02);
+    tl.fromTo('#edit-copy .eyebrow',{opacity:0,y:14},{opacity:1,y:0,duration:.35,ease:'power2.out'},.08);
+    tl.fromTo('#edit-copy .headline span',{opacity:0,y:30},{opacity:1,y:0,duration:.55,stagger:.12,ease:'power3.out'},.2);
+    tl.fromTo('#edit-points',{'--hf-panel-open':0},{'--hf-panel-open':1,duration:.7,ease:'power3.inOut'},.65);
+    
+    tl.set('#edit-ai',{opacity:0},0);
+    tl.to('#edit-direct',{opacity:0,x:-42,duration:.3,ease:'power2.in'},2.6);
+    tl.fromTo('#edit-ai',{opacity:0,x:55},{opacity:1,x:0,duration:.55,ease:'power3.out'},2.75);
+
+    window.__timelines['edit']=tl;</script></template>

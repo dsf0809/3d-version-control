@@ -40,3 +40,39 @@ next-env.d.ts
 .dev.vars*
 !.env.example
 *.tsbuildinfo
+
+# local browser recordings and tool state
+/.playwright-cli/
+/output/
+/:memory:.ses
+
+# Generated video media and review artifacts (editable sources stay tracked)
+/artifacts/**/renders/
+/artifacts/**/capture/
+/artifacts/**/snapshots/
+/artifacts/**/verify/
+/artifacts/**/.hyperframes/
+/artifacts/**/.thumbnails/
+/artifacts/**/.waveform-cache/
+/artifacts/**/.media/
+/artifacts/**/node_modules/
+/artifacts/**/*.mp4
+/artifacts/**/*.webm
+/artifacts/**/*.wav
+/artifacts/**/*.aiff
+/artifacts/**/*.mp3
+/artifacts/**/*.ttf
+/artifacts/**/*.log
+/artifacts/**/*.sha256
+/artifacts/**/*.zip
+/artifacts/**/edit/check-*.json
+/artifacts/**/edit/timeline-before.json
+
+# Generated intro review frames and recorded render command
+/artifacts/video-intro/poster.png
+/artifacts/video-intro-v2/shot-*.png
+/artifacts/video-intro-v3/edit/caption-*.png
+/artifacts/video-intro-v3/edit/source-*.png
+/artifacts/video-intro-v3/edit/source-*.jpg
+/artifacts/video-intro-v3/edit/workshop-*.png
+/artifacts/video-intro-v3/edit/render-command.json

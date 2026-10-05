@@ -1,0 +1,20 @@
+{
+  "duration": 9.547041666666667,
+  "phrases": [
+    {
+      "start": 0.12,
+      "end": 3.005875,
+      "text": "Hey, I've been working on a small project called Form."
+    },
+    {
+      "start": 3.165875,
+      "end": 7.728375,
+      "text": "It's a tool for making simple 3D parts and keeping track of the changes you make."
+    },
+    {
+      "start": 7.888375,
+      "end": 9.247041666666666,
+      "text": "Let me show you how it works."
+    }
+  ]
+}

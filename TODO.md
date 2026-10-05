@@ -514,3 +514,159 @@ were not pushed or deployed. No secrets were changed and no AI calls were made.
 - [x] Implementation committed and pushed to origin/main as d4c3fe0. This
   follow-up records the successful push. Next: browser verification of the guide;
   hosted deployment remains unchanged.
+
+## Video introduction draft — 2026-10-03
+
+- [x] Created an 11-second 1280×720 MP4 opening using the actual compiled sample
+  tray geometry, a gentle camera turn, captions and temporary local synthetic
+  narration. Deliverable: artifacts/video-intro/form-intro-v1.mp4; render source,
+  poster, audio and subtitle file are alongside it. This is a rendered intro,
+  not a recording of the software UI or the user's voice.
+- [x] Inspected the rendered poster, verified H.264/AAC streams and duration,
+  and decoded the complete video without errors. No paid AI calls or deployment.
+- Next: user review of the first part, then record/build the guided-project
+  walkthrough. Video artifacts and this tracker update remain local, uncommitted.
+
+## Revised video introduction — 2026-10-03
+
+- [x] Replaced system narration with a local Kokoro stock neural voice and composed
+  an original instrumental bed, lowered beneath speech. No imitation of a real
+  individual; no third-party music samples or paid generation requests.
+- [x] Built four animated scenes from actual template and comparison geometry:
+  wireframe-to-solid reveal, three starting shapes, moving divider, removed/added
+  comparison and V0/V1 markers. Full HD output and captions; rendered demonstration,
+  not app-screen footage. Earlier draft preserved.
+- Visual QA caught and corrected a missing font glyph and refined comparison
+  callout endpoints. Next: re-render the corrected cut and verify the final file.
+- [x] Final corrected MP4 decoded without errors; H.264 video at 1920×1080,
+  AAC stereo audio, approximately 17.2 seconds. Mixed audio peaks at −3.9 dBFS
+  with no clipping. Four representative scenes inspected; captions and source
+  credits saved beside the deliverable. Local artifacts remain uncommitted.
+- Next: user review of the revised opening before continuing the walkthrough.
+
+## Script-faithful workshop introduction — 2026-10-04
+
+- [x] Installed the requested Hyperframes, Video-use, Remotion, Video Cut,
+  Playwright, ElevenLabs and FFmpeg skill packages in the personal skills folder.
+  Generative Media is pending at the user's request because the agreed source no
+  longer contains that skill collection. Skill installation does not configure
+  provider accounts; no ElevenLabs API key is present in this shell.
+- [x] Confirmed the existing localhost workshop is reachable with Playwright and
+  retained the previous video drafts. No paid AI request or app-source change.
+- [x] Remade only the ten-second opening using the user's exact introduction,
+  actual Playwright workshop footage with a tray orbit, local Kokoro stock neural
+  narration and quiet original music. Captions sit below the app; the full revision
+  controls stay visible. Corrected browser capture bounds after a cropped first
+  take. No provider API calls, app-source changes or deployment.
+- [x] Verified all 29 installed SKILL.md files across the seven requested groups;
+  Generative Media remains uninstalled per the user's latest instruction.
+- [x] Final visual/audio review and independent critic pass completed. Output is
+  exactly 10 seconds / 300 frames, H.264 1920×1080 at 30 fps with AAC stereo.
+  Complete decode passes; final caption changes and first/middle/last frames are
+  clean. Measured audio is approximately −16 LUFS with −1.5 dB true peak and no
+  clipping; narration finishes before the cut. Independent review found no
+  material fixes. Voice naturalness remains a listening judgment; no audition
+  was claimed. Source, edit decisions, captions and review notes are retained.
+- Next: user review of artifacts/video-intro-v3/edit/form-intro-v3.mp4, then the
+  guided-project section if requested. New artifacts and progress notes remain
+  local and uncommitted; no hosted deployment.
+
+## Alternate corporate launch video — 2026-10-04
+
+- [x] Preserved the personal intro and created a separate Hyperframes project at
+  artifacts/video-launch-v1. Read the tracker and inspected the supplied LangEase
+  reference using browser playback, verifying the correct 33-second video rather
+  than the pre-roll advertisement. New direction: light/blue style, interface
+  close-ups, side-panel feature text and instrumental music with no voiceover.
+- [x] Captured real guide, dimensions, unsent example request, V0/V1 comparison,
+  revision views and export controls. Existing saved comparison footage is labeled
+  accordingly. No paid request, accepted edit or newly saved project was required.
+- [x] User expanded the request to the whole video. Authored all six scenes for
+  a complete 36-second cut, side-panel feature text and original instrumental
+  music; no voiceover. Separate source and source-asset manifest retained.
+- [x] Browser composition validation passes with zero lint, runtime, layout or
+  contrast findings at 11 sample times. Adjusted the prompt panel and comparison
+  framing. Started a separate local Studio preview on port 3017.
+- [x] Rendered the complete 36-second / 1,080-frame H.264 1080p30 MP4 with
+  AAC stereo. Full decode passed; audio measured −17.9 LUFS / −3.9 dB true peak.
+  Prior intro checksum matches. Local Studio URL returns HTTP 200.
+- [x] Rendered-frame and independent critic reviews passed without blockers.
+  Final output: artifacts/video-launch-v1/renders/form-launch-v1.mp4. Editable
+  source, source credits, frame evidence and audio measurements are retained.
+  Optional future refinements: larger V0/V1 labels and consistent dimensions
+  across the separate setup and saved-comparison examples.
+- Next: user review of the complete alternate cut. Prior personal intro remains
+  unchanged. New video and progress notes are local and uncommitted.
+  Local-only media work; no application changes, paid AI calls or deployment.
+
+## Beat-driven launch revision — 2026-10-04
+
+- [x] Read the tracker and preserved the complete first launch film. Created
+  a separate video-launch-v2 project for the requested stronger drums and more
+  dynamic demonstrations.
+- [x] Composed a new original 128 BPM breakbeat with kicks, snares, hats, fills,
+  syncopated bass and plucks; target −14 LUFS. Authored stronger camera moves,
+  kinetic text and 18-bar scene timing. Captured moving local guide interactions.
+  Updated the separate project CLI from 0.8.124 to 0.8.125; baseline check passed.
+- [x] Added actual guide and unsent typing recordings; cleared the unsent input.
+  New 33.75-second composition passes browser checks with zero lint, runtime,
+  layout or contrast findings at 14 sample times. Intentional media crops were
+  visually inspected; the full feature sequence is retained.
+- [x] First render: 2,025 frames, 1080p60, 33.75 seconds; full decode passed.
+  Audio measured −13.9 LUFS / −1.7 dB true peak. Independent review confirmed
+  stronger motion and caught a blank export panel caused by an unsized transform
+  wrapper; fixed the wrapper before delivery. Previous v1 checksum still matches.
+- [x] Corrected final render completed: 33.75 seconds / 2,025 frames, H.264
+  1920×1080 at 60 fps with AAC stereo. Full decode clean, music still −13.9 LUFS
+  / −1.7 dB true peak. Inspected the exported 28-second frame: full export dialog
+  is visible. Refreshed all review frames; local preview returns HTTP 200.
+- [x] Independent critic rechecked the final rendered 28.00/29.90-second frames:
+  export panel complete and readable, no remaining blockers. Finished video is
+  artifacts/video-launch-v2/renders/form-launch-v2.mp4.
+- Next: user review of the drum-driven cut. Prior versions are preserved; new
+  artifacts and tracker edits remain local and uncommitted.
+  Local media work only; no paid AI tests or application deployment.
+
+## Logo intro and closing — 2026-10-04
+
+- [x] Preserved v2 and created a separate v3 project using the real Form cube icon.
+- [x] Added 3.75-second animated icon/wordmark bookends around the complete
+  feature film, with a GitHub closing link. Extended the original 128 BPM score
+  to 22 bars / 41.25 seconds. No voiceover.
+- [x] Inspected opening and closing snapshots: actual icon, wordmark and GitHub
+  link are clear and centered. Validation passed after the new project’s CLI
+  update from 0.8.125 to 0.8.126; no runtime/layout/contrast issues. Three lint
+  warnings concern the intentional repeated icon and simple bookend wrappers.
+- [x] Rendered 41.25-second / 2,475-frame H.264 1080p60 MP4. Inspected the
+  opening, feature-film handoff, ending handoff and closing link. Prior v2
+  checksum matches; local preview on port 3019 returns HTTP 200.
+- [x] Full decode passed; audio −13.9 LUFS / −1.9 dB true peak. Independent
+  review passed the actual logo, wordmark, scene joins and readable closing link.
+  Final output: artifacts/video-launch-v3/renders/form-launch-v3.mp4.
+- Next: user review. All prior cuts are preserved; artifacts remain local and
+  uncommitted.
+
+## Downloadable branding — 2026-10-04
+
+- [x] Exported the existing Form cube logo as SVG and a 1024×1024 transparent
+  PNG. Verified alpha background and output dimensions.
+- [x] Created a matching YouTube banner at 2560×1440, with centered logo and
+  tagline, blue accents and subtle geometry. Checked official YouTube guidance,
+  verified central content bounds (893×583 to1667×857), and file size under1 MB.
+- [x] Packaged logo and banner PNG/SVG files in artifacts/branding/form-branding.zip.
+- Next: user download/upload. Files stay local and uncommitted; no channel changes.
+
+## Repository video publication — 2026-10-04
+
+- [x] Added the supplied YouTube demo link to the root README and media index.
+- [x] Prepared editable video sources and downloadable logo/banner assets for Git.
+  Ignored rendered media, browser recordings/state, review captures, caches and
+  local font files. Production sources require local media inputs to render;
+  the published video is linked instead of storing generated movies in Git.
+- [x] Verified 17 Python sources, 21 JSON files, README local links, whitespace
+  and credential-pattern scan. Eligible media sources/assets total 3.24 MiB.
+  Staged whitespace review found only existing trailing spaces/blank lines in
+  generated composition snippets and vendored GSAP; retained those sources as-is.
+- Delivery: committed for push to origin/main; Git history and remote
+  branch state record publication. No app deployment or paid AI tests.
+- Next: verify the pushed branch; future rendering requires the local media inputs.

@@ -1,0 +1,13 @@
+<template><div class="scene" data-composition-id="edit" data-duration="5.625" data-width="1920" data-height="1080"><div id="edit-visual" class="visual"><div class="stage"><div class="stage-label">DIRECT EDITING + AI ASSISTANCE</div><div id="edit-fields" class="float"><img src="assets/edit-dimensions.png" style="height:645px"/></div><div id="edit-prompt"><div class="prompt"><video id="typing" src="assets/typing-motion.mp4" data-start="1.875" data-hf-media-start-basis="local" data-duration="3.75" muted playsinline></video></div><div class="prompt-note">Example request · review changes before saving</div></div></div></div><aside id="edit-copy" class="aside"><p class="eyebrow">02 / Shape the details</p><h1 class="headline"><span class="line ">Dial it in.</span><span class="line blue">Or ask AI.</span></h1><div class="points"><p class="point ">Edit dimensions directly</p><p class="point ">Describe your next change</p></div></aside></div><script>const tl=gsap.timeline({paused:true});const beat=0.46875;
+ tl.fromTo('#edit-visual',{y:100,rotationX:8,scale:.91,opacity:0},{y:0,rotationX:0,scale:1,opacity:1,duration:.6,ease:'power4.out'},0);
+ tl.fromTo('#edit-copy .eyebrow',{x:26,opacity:0},{x:0,opacity:1,duration:.28,ease:'power3.out'},.05);
+ tl.fromTo('#edit-copy .line',{y:50,opacity:0,rotation:2},{y:0,opacity:1,rotation:0,duration:.4,stagger:beat/2,ease:'power4.out'},.1);
+ if ('edit' !== 'close') { tl.fromTo('#edit-copy .point',{x:40,opacity:0},{x:0,opacity:1,duration:.32,stagger:beat/2,ease:'power3.out'},beat*1.5); }
+ 
+ tl.fromTo('#edit-fields',{scale:.94,rotation:2},{scale:1.015,rotation:0,duration:1.6,ease:'power2.out'},0);
+ tl.set('#edit-prompt',{opacity:0},0);
+ tl.to('#edit-fields',{x:-500,opacity:0,rotation:-8,duration:.3,ease:'power3.in'},1.65);
+ tl.fromTo('#edit-prompt',{x:360,opacity:0,rotation:3},{x:0,opacity:1,rotation:0,duration:.38,ease:'expo.out'},1.875);
+ tl.to('#edit-prompt',{scale:1.035,duration:2.9,ease:'sine.inOut'},2.4);
+
+ window.__timelines['edit']=tl;</script></template>
