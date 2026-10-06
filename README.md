@@ -10,17 +10,8 @@ unchanged geometry is **gray**.
 Use it to explore trays, enclosures, simple brackets, and other parts built from
 basic solids. Start with the included tray demo—no API key needed.
 
-> **Development preview:** the core workflows are implemented and covered by
-> offline tests. Successful live AI generation, cross-slicer import validation,
-> and physical printing validation remain release checks. See [TODO.md](TODO.md)
-> for current progress and outstanding work.
-
-## Watch the demo
-
-[**Introducing Form: 3D Design with AI and Version Control**](https://youtu.be/BY60m1mSoms)
-
-A short walkthrough of guided setup, dimension controls, AI-assisted editing,
-version comparisons, and STL/3MF export.
+Form is an early preview. Live AI design quality, slicer compatibility, and
+physical print results still need broader validation.
 
 ## Try the comparison demo
 
@@ -143,7 +134,7 @@ Try a specific request such as:
 
 | Format | Contents |
 | --- | --- |
-| 3MF | Millimeter geometry and one blue display material matching the original-model viewer |
+| 3MF | Millimeter geometry and feature display colors |
 | STL | Binary triangle geometry; coordinates use millimeters, with Z up |
 | Form JSON | Editable model operations for re-import and further editing |
 
@@ -194,7 +185,7 @@ Owners can revoke links and disable the STL download option, but displayed geome
 is still delivered to the recipient's browser. Hosted Sites access policies must
 also allow the intended recipient; creating a link does not change that policy.
 
-## Development and verification
+## Checks
 
 ```sh
 pnpm test
@@ -202,80 +193,26 @@ pnpm typecheck
 pnpm build
 ```
 
-The latest recorded suite has **76 passing offline tests**, covering geometry,
-project ownership and persistence, proposals, branching, locks, sharing, imports,
-exports, camera projection behavior, bounded geometry caching, targeted edit commands,
-and both approval modes. Tests use injected provider responses and
-isolated SQLite databases: **no API key or paid AI calls are required**.
+Tests use mock AI responses and isolated local databases; no API key or paid
+requests are required. Run `pnpm test:worker:offline` for the background-job
+integration check. Offline tests verify application behavior, not AI design quality.
 
-The production background-worker check uses a fresh Miniflare database, fake
-credentials and an outbound handler that returns local mock responses only:
+## Hosting
 
-```sh
-pnpm test:worker:offline
-```
+The app uses React/Vinext, Cloudflare Workers, D1, and the Sites authentication
+integration. Local sign-in uses a fixed test identity and is only suitable for
+local use. A public deployment needs verified authentication and usage limits
+for paid AI requests.
 
-It verifies alarm execution, RPC, duplicate suppression, proposal acceptance and
-feature colors without contacting an AI provider.
+Configure hosted secrets and a D1 database separately; local environment values
+and database records are not uploaded automatically. Apply the migrations in
+`drizzle/` to the hosted database. Preserve the `GENERATION_JOBS` Durable Object
+binding and `generation-jobs-v1` migration from `vite.config.ts`. The production
+build emits Worker configuration in `dist/server/wrangler.json`.
 
-Run the offline conversation scenario alone:
-
-```sh
-node --import tsx --test --test-name-pattern='offline conversation' tests/projects.test.ts
-```
-
-Offline tests check application behavior, not the real model's design quality.
-Browser checks and remaining release checks are recorded in [TODO.md](TODO.md).
-
-### Architecture
-
-React/Vinext and Sites on Cloudflare Workers, D1 persistence, a Three.js viewer,
-JSCAD solid modeling, and the OpenAI Responses API with structured model data.
-Each generation request is enqueued in a Durable Object before the HTTP response
-returns. An alarm runs it independently of the browser, with persisted phases,
-explicit cancellation and reload recovery. Completed requests are idempotent;
-an uncertain interrupted provider call is never automatically replayed.
-Project reads return one selected model plus 40 revision summaries; comparison
-models load on demand and older metadata/messages have cursor-based paging.
-Templates, feature colors, linear dimension links and source-surface picking use
-validated model data. Geometry caches exclude display color changes.
-
-Browser geometry uses a two-worker pool and an in-memory LRU cache capped at
-64 MB or 100 entries; labels do not invalidate geometry. Cancellation, timeouts
-and page disposal release worker resources. Server comparison validation builds
-each solid once and skips triangulation of comparison-only meshes.
-Small AI edits use bounded commands against an exact revision or proposal ID;
-full models remain available for new designs and major rebuilds. The server applies
-commands to a clone and validates feature identity, dimensions, locks and geometry. **AI-generated JavaScript is not executed.**
-
-| Location | Responsibility |
-| --- | --- |
-| `components/workshop.tsx`, `workspace-model.tsx`, `workspace-chat.tsx` | Tool dialogs, model workspace, and conversation/review panels |
-| `lib/projects/use-workshop.ts` | Workspace orchestration |
-| `workers/app.ts`, `lib/projects/background-job.ts` | Durable generation jobs and safe recovery |
-| `components/model-viewer.tsx` and `lib/viewer/` | Viewer controls, camera-preserving Three.js engine and demand rendering |
-| `components/project-sidebar.tsx` | Project navigation, search, import, and archiving |
-| `lib/projects/` | Persistence, ownership, proposals, locks, sharing, and conversation orchestration |
-| `lib/cad/` | Model schema, geometry, change explanations, and file exports |
-| `lib/ai.ts` | Provider requests and structured response handling |
-| `db/schema.ts` and `drizzle/` | Database schema and migrations |
-
-After schema changes, run `pnpm db:generate`, inspect the SQL, and apply it locally
-with `pnpm db:migrate`. Keep previously applied migrations immutable.
-
-### Hosting status
-
-GitHub source and the hosted preview may differ. Configure hosted secrets separately;
-local `.env` values and local database records are not uploaded automatically.
-Hosted migrations 0004–0006 and deployment remain pending. Preserve the
-`GENERATION_JOBS` Durable Object binding and `generation-jobs-v1` SQLite migration
-from `vite.config.ts` in the deployed Worker configuration. The production build
-emits these settings in `dist/server/wrangler.json`. Verify the hosted sign-in and
-Sites recipient policy with separate accounts before opening invitations to users.
-
-A standalone public deployment needs verified authentication in place of the
-Sites-specific identity boundary, plus usage limits for paid AI requests. Never
-include `.env` or `.wrangler/state` in deployment archives.
+The checked-in `.openai/hosting.json` contains generic resource bindings, not a
+hosted project association. Configure your own project when deploying through Sites.
+Never include `.env` or `.wrangler/state` in deployment archives.
 
 ## Help shape the project
 
@@ -285,16 +222,10 @@ For printing feedback, include your slicer, printer, and measured result. Screen
 or a non-sensitive model example help; do not include API keys or private project data.
 
 Useful next contributions include slicer validation, onboarding improvements,
-mesh import, team comments, and broader browser testing. Check [TODO.md](TODO.md) before
-starting substantial work and open an issue to discuss the scope.
+mesh import, team comments, and broader browser testing. Open an issue to discuss
+substantial changes before starting work.
 
 ## License
 
 Licensed under the [MIT License](LICENSE). Third-party dependencies retain their
 own licenses.
-
-## Media and branding
-
-- [Logo (SVG)](artifacts/logo/form-logo.svg) · [Transparent PNG](artifacts/logo/form-logo.png)
-- [YouTube banner](artifacts/branding/form-youtube-banner.png) · [Editable SVG](artifacts/branding/form-youtube-banner.svg)
-- [Video production sources](artifacts/README.md)
