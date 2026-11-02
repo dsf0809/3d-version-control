@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import AIConnection from './ai-connection';
+import AccountMenu, { type AccountUser } from './account-menu';
 import DesignAccess from '@/components/design-access';
 import FeatureInspector from '@/components/feature-inspector';
 import ProjectControls from '@/components/project-controls';
@@ -18,7 +19,7 @@ import FeatureProperties from './feature-properties';
 import WorkspaceChat from './workspace-chat';
 import WorkspaceModel from './workspace-model';
 import FirstProjectGuide from './first-project-guide';
-export default function Workshop() {
+export default function Workshop({ user }: { user: AccountUser }) {
   const state = useWorkshop();
   const [compactPanel, setCompactPanel] = useState<'model' | 'chat'>('model');
   const [compactTools, setCompactTools] = useState(false);
@@ -101,6 +102,7 @@ export default function Workshop() {
             />
             <Settings2 size={15} /> AI connection
           </button>
+          <AccountMenu user={user} />
         </header>
         <div className="compact-navigation">
           <div role="group" aria-label="Workspace panel">

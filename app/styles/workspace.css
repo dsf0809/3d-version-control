@@ -1023,3 +1023,88 @@ body {
   .guide-choice { gap: 6px; padding: 12px; }
   .guided-launch { font-size: 12px; }
 }
+
+/* Account and server administration dialog. */
+.account-dialog {
+  max-height: min(86dvh, 860px);
+  overflow-y: auto;
+}
+.account-body {
+  display: grid;
+  gap: 18px;
+  font-size: 13px;
+  color: #3d4656;
+}
+.account-body section {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #e2e7ef;
+  padding-top: 14px;
+}
+.account-body h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2633;
+}
+.account-body p {
+  line-height: 1.55;
+}
+.account-body code {
+  background: #f1f4f8;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 12px;
+}
+.account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.account-row > input,
+.account-check input[type='number'] {
+  flex: 1 1 140px;
+  min-width: 0;
+  border: 1px solid #e2e7ef;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #fff;
+}
+.account-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.account-check input[type='number'] {
+  flex: 0 0 90px;
+}
+.account-list {
+  display: grid;
+  gap: 6px;
+}
+.account-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f2f6;
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.account-actions .quiet {
+  padding: 5px 9px;
+}
+.account-message {
+  color: #24613a;
+}
+.account-error {
+  color: #b42318;
+}
+.account-body section > .quiet {
+  justify-self: start;
+}

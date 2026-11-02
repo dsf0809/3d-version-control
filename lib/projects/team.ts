@@ -16,7 +16,7 @@ export async function team(
   const members = (
     await store
       .stmt(
-        'SELECT user_id AS userId,role,created_at AS joinedAt FROM project_members WHERE project_id=? ORDER BY created_at',
+        "SELECT m.user_id AS userId,m.role,m.created_at AS joinedAt,u.display_name || ' (@' || u.username || ')' AS name FROM project_members m LEFT JOIN users u ON u.id=m.user_id WHERE m.project_id=? ORDER BY m.created_at",
         projectId,
       )
       .all()
@@ -32,8 +32,17 @@ export async function team(
             .all()
         ).results
       : [];
+  const owner = await store
+    .stmt(
+      "SELECT display_name || ' (@' || username || ')' AS name FROM users WHERE id=?",
+      p.owner_id,
+    )
+    .first<{ name: string }>();
   return {
-    members: [{ userId: p.owner_id, role: 'owner' }, ...members],
+    members: [
+      { userId: p.owner_id, role: 'owner', name: owner?.name ?? null },
+      ...members,
+    ],
     invitations,
   };
 }

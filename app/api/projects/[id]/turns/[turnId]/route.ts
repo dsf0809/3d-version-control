@@ -1,4 +1,5 @@
-import { failure, json, ownerOf } from '@/lib/projects/http';
+import { failure, json } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 import { jobFor } from '@/lib/projects/jobs-binding';
 export async function GET(
   request: Request,
@@ -7,7 +8,7 @@ export async function GET(
   try {
     const p = await context.params;
     return json(
-      await jobFor(ownerOf(request), p.turnId).status(ownerOf(request), p.id),
+      await jobFor(await ownerOf(request), p.turnId).status(await ownerOf(request), p.id),
     );
   } catch (e) {
     return failure(e);

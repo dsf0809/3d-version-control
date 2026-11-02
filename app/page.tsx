@@ -1,27 +1,30 @@
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import Workshop from '@/components/workshop';
+import AuthScreen from '@/components/auth-screen';
+import { accounts, SESSION_COOKIE } from '@/lib/server/auth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const userId = (await headers()).get('oai-authenticated-user-id');
-  if (!userId)
+  const a = accounts();
+  const user = await a.sessionUser(
+    (await cookies()).get(SESSION_COOKIE)?.value,
+  );
+  if (!user || user.mustChangePassword)
     return (
-      <main className="signin-screen">
-        <div>
-          <strong className="signin-brand">form.</strong>
-          <h1>Your ideas, ready to continue.</h1>
-          <p>
-            Open your workshop to save projects, conversations, and every model
-            iteration.
-          </p>
-          {/* Dispatch-owned sign-in requires full navigation without router prefetch. */}
-          {/* oxlint-disable-next-line next/no-html-link-for-pages */}
-          <a href="/signin-with-chatgpt?return_to=%2F" target="_top">
-            Continue to your workshop
-          </a>
-        </div>
-      </main>
+      <AuthScreen
+        setupRequired={!user && (await a.count()) === 0}
+        signupOpen={!!(await a.joinCode())}
+        mustChangePassword={user?.mustChangePassword}
+      />
     );
-  return <Workshop />;
+  return (
+    <Workshop
+      user={{
+        displayName: user.displayName,
+        username: user.username,
+        admin: user.role === 'admin',
+      }}
+    />
+  );
 }

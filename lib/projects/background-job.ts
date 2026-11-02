@@ -3,6 +3,7 @@ import { ProjectStore, validateTurn } from './store';
 import { HttpError } from './http';
 import { turnStatus, type TurnStatus } from './turn-status';
 import type { TurnInput } from './types';
+import type { AIAccess } from '../ai-providers';
 export type JobRecord = {
   owner: string;
   input: TurnInput;
@@ -22,9 +23,10 @@ export class BackgroundJob {
   constructor(
     private storage: JobStorage,
     private store: ProjectStore,
-    private key: string | ((owner: string) => Promise<string>),
+    private key: AIAccess | ((owner: string) => Promise<AIAccess>),
     private model: string,
     private fetcher: typeof fetch = fetch,
+    private timeout = 120000,
   ) {}
   async enqueue(owner: string, raw: unknown) {
     const input = validateTurn(raw);
@@ -102,9 +104,9 @@ export class BackgroundJob {
         this.store,
         j.owner,
         j.input,
-        typeof this.key === 'string' ? this.key : await this.key(j.owner),
+        typeof this.key === 'function' ? await this.key(j.owner) : this.key,
         this.model,
-        AbortSignal.timeout(120000),
+        AbortSignal.timeout(this.timeout),
         this.fetcher,
       );
       await this.storage.put('job', { ...j, state: 'finished' });

@@ -6,15 +6,13 @@ export class HttpError extends Error {
     super(message);
   }
 }
-export function ownerOf(request: Request) {
-  const owner = request.headers.get('oai-authenticated-user-id');
-  if (!owner) throw new HttpError(401, 'Sign in to access your projects.');
-  return owner;
-}
-export async function readBody(request: Request, maxBytes = 100000) {
+export function assertSameOrigin(request: Request) {
   const origin = request.headers.get('origin');
   if (origin && origin !== new URL(request.url).origin)
     throw new HttpError(403, 'Cross-origin requests are not accepted.');
+}
+export async function readBody(request: Request, maxBytes = 100000) {
+  assertSameOrigin(request);
   if (!request.headers.get('content-type')?.includes('application/json'))
     throw new HttpError(415, 'Use application/json.');
   const reader = request.body?.getReader();

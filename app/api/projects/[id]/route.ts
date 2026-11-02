@@ -7,20 +7,15 @@ import {
   restoreRevision,
   editFeature,
 } from '@/lib/projects/proposals';
-import {
-  ownerOf,
-  readBody,
-  json,
-  failure,
-  HttpError,
-} from '@/lib/projects/http';
+import { readBody, json, failure, HttpError } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Context) {
   try {
     return json(
       await projectSnapshot(
         projectStore(),
-        ownerOf(request),
+        await ownerOf(request),
         (await context.params).id,
         {
           branchId:
@@ -36,7 +31,7 @@ export async function GET(request: Request, context: Context) {
 }
 export async function PATCH(request: Request, context: Context) {
   try {
-    const owner = ownerOf(request),
+    const owner = await ownerOf(request),
       projectId = (await context.params).id,
       body = await readBody(request),
       store = projectStore();

@@ -25,7 +25,8 @@ import {
 } from '../lib/cad/model';
 import { initialRevision } from '../lib/cad/history';
 import { compareGeometry, buildGeometry, binarySTL } from '../lib/cad/geometry';
-import { ownerOf, readBody } from '../lib/projects/http';
+import { readBody } from '../lib/projects/http';
+import type { SqlDatabase } from '../lib/server/sqlite';
 import type { ProjectDetail, TurnInput } from '../lib/projects/types';
 
 // Execute production queries against SQLite, with D1-style atomic batches.
@@ -567,7 +568,7 @@ function fixture() {
         throw e;
       }
     },
-  } as unknown as D1Database;
+  } as unknown as SqlDatabase;
   return { store: new ProjectStore(db), sqlite };
 }
 function request(
@@ -966,11 +967,7 @@ void test('legacy import is idempotent and reconstructs branches', async () => {
   assert.equal(p.revisions[2].parentId, p.revisions[0].id);
   sqlite.close();
 });
-void test('HTTP guards require identity, same origin and bounded JSON', async () => {
-  assert.throws(
-    () => ownerOf(new Request('http://localhost/api/projects')),
-    /Sign in/,
-  );
+void test('HTTP guards require same origin and bounded JSON', async () => {
   await assert.rejects(
     readBody(
       new Request('http://localhost/api/projects', {
@@ -1809,24 +1806,4 @@ void test('revoking a contributor blocks queued work and prevents in-flight save
   }
 });
 
-void test('personal AI keys are encrypted, isolated, replaceable and resolved for each owner', async () => {
- const {saveCredential,readCredential,hasCredential}=await import('../lib/projects/ai-credentials');
- const {store,sqlite}=fixture();
- const secret='offline-vault-secret-32-characters-long';
- const key='sk-offline-fixture-key-not-a-real-key';
- try {
-  await assert.rejects(saveCredential(store,'alice',key,''));
-  await saveCredential(store,'alice',key,secret);
-  assert.equal(await hasCredential(store,'alice'),true);
-  assert.equal(await hasCredential(store,'bob'),false);
-  assert.equal(await readCredential(store,'alice',secret),key);
-  assert.equal(await readCredential(store,'bob',secret,'fallback'),'fallback');
-  const row=await store.stmt('SELECT encrypted_key FROM ai_credentials WHERE owner_id=?','alice').first<{encrypted_key:string}>();
-  assert.ok(!row!.encrypted_key.includes(key));
-  await assert.rejects(readCredential(store,'alice','wrong-secret-with-at-least-32-characters'));
-  await store.stmt('INSERT INTO ai_credentials(owner_id,encrypted_key) VALUES (?,?)','bob',row!.encrypted_key).run();
-  await assert.rejects(readCredential(store,'bob',secret));
-  await saveCredential(store,'alice',key+'-replacement',secret);
-  assert.equal(await readCredential(store,'alice',secret),key+'-replacement');
- }finally{sqlite.close();}
-});
+

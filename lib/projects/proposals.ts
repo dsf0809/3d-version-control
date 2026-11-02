@@ -1,3 +1,4 @@
+import type { SqlStatement } from '../server/sqlite';
 import type { ProjectStore } from './store';
 import type { Proposal, TurnInput, TurnResult } from './types';
 import { validateGeneratedModel, upgradeModel } from '../cad/model';
@@ -280,7 +281,7 @@ export async function reviewProposal(
     const guard =
       "EXISTS (SELECT 1 FROM proposals p JOIN branches b ON b.id=p.branch_id WHERE p.id=? AND p.status='pending' AND b.lock_token=? AND b.head_revision_id=? AND EXISTS (SELECT 1 FROM projects project WHERE project.id=b.project_id AND (project.owner_id=? OR EXISTS (SELECT 1 FROM project_members m WHERE m.project_id=project.id AND m.user_id=? AND m.role='editor' AND b.created_by=m.user_id AND b.parent_branch_id IS NOT NULL))))";
     const args = [proposalId, token, locked.head_revision_id, owner, owner];
-    const stmts: D1PreparedStatement[] = [];
+    const stmts: SqlStatement[] = [];
     if (decision === 'accept') {
       const model = validateGeneratedModel(JSON.parse(p.model_json));
       await checkLocks(store, projectId, model);

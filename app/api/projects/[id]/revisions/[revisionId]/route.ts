@@ -1,6 +1,7 @@
 import { projectStore } from '@/lib/projects/db';
 import { getRevision } from '@/lib/projects/revisions';
-import { ownerOf, json, failure } from '@/lib/projects/http';
+import { json, failure } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string; revisionId: string }> },
@@ -8,7 +9,7 @@ export async function GET(
   try {
     const p = await context.params;
     return json(
-      await getRevision(projectStore(), ownerOf(request), p.id, p.revisionId),
+      await getRevision(projectStore(), await ownerOf(request), p.id, p.revisionId),
     );
   } catch (e) {
     return failure(e);

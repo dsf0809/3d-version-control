@@ -7,16 +7,23 @@ import { ProjectStore, validateTurn } from './store';
 import { lineage, type TurnResult } from './types';
 import { saveProposal, listProposals } from './proposals';
 import { validateGeneratedModel } from '../cad/model';
+import {
+  endpointOf,
+  keepsConversation,
+  toConnection,
+  type AIAccess,
+  type AIConnection,
+} from '../ai-providers';
 export async function createConversation(
   seed: string,
-  key: string,
+  ai: AIConnection,
   signal: AbortSignal,
   fetcher: typeof fetch = fetch,
 ) {
-  const r = await fetcher('https://api.openai.com/v1/conversations', {
+  const r = await fetcher(`${endpointOf(ai)}/conversations`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${key}`,
+      Authorization: `Bearer ${ai.key}`,
       'Content-Type': 'application/json',
     },
     signal,
@@ -47,12 +54,13 @@ export async function runTurn(
   store: ProjectStore,
   owner: string,
   raw: unknown,
-  key: string,
+  access: AIAccess,
   modelName: string,
   signal: AbortSignal,
   fetcher: typeof fetch = fetch,
 ): Promise<TurnResult> {
   const input = validateTurn(raw);
+  const ai = toConnection(access, modelName);
   signal.throwIfAborted();
   const started = await store.begin(owner, input);
   if (started.cached) return started.cached;
@@ -71,7 +79,12 @@ export async function runTurn(
     const referenced = new Set(
       [...input.message.matchAll(/\bv(\d+)\b/gi)].map((m) => Number(m[1])),
     );
+    // Providers without saved conversations receive recent discussion each turn.
+    const recentDiscussion = keepsConversation(ai)
+      ? undefined
+      : (await store.history(input.branchId)).slice(-20);
     const context = JSON.stringify({
+      ...(recentDiscussion ? { recentDiscussion } : {}),
       project: {
         name: started.project!.name,
         brief: started.project!.brief,
@@ -105,14 +118,15 @@ export async function runTurn(
         })),
     });
     let conversationId = started.branch!.conversation_id as string | null;
-    if (!conversationId) {
+    if (!keepsConversation(ai)) conversationId = null;
+    else if (!conversationId) {
       const history = await store.history(input.branchId);
       conversationId = await createConversation(
         JSON.stringify({
           projectContext: JSON.parse(context),
           recentDiscussion: history.slice(-40),
         }),
-        key,
+        ai,
         signal,
         fetcher,
       );
@@ -124,12 +138,12 @@ export async function runTurn(
         messages: [{ role: 'user', content: input.message }],
         model: editingModel,
       },
-      key,
-      modelName,
+      ai,
+      ai.model,
       signal,
       fetcher,
       {
-        conversationId,
+        conversationId: conversationId ?? undefined,
         projectContext: context,
         baseId: pending?.id ?? input.revisionId,
         autoApply,

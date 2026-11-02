@@ -1,8 +1,31 @@
 import { projectStore } from '@/lib/projects/db';
-import { ownerOf, failure } from '@/lib/projects/http';
-import { hasCredential } from '@/lib/projects/ai-credentials';
+import { json, failure, HttpError } from '@/lib/projects/http';
+import {
+  resolveConnection,
+  sharingPolicy,
+  usageToday,
+} from '@/lib/projects/ai-credentials';
+import { PROVIDERS } from '@/lib/ai-providers';
+import { currentUser } from '@/lib/server/auth';
+import { runtime } from '@/lib/server/runtime';
 export async function GET(request: Request) {
   try {
-    return Response.json({configured: await hasCredential(projectStore(), ownerOf(request)) || !!process.env.OPENAI_API_KEY, model:process.env.OPENAI_MODEL || 'gpt-6-astra'}, {headers:{'Cache-Control':'no-store'}});
-  } catch(e) { return failure(e); }
+    const user = await currentUser(request);
+    if (!user) throw new HttpError(401, 'Sign in to access your projects.');
+    const store = projectStore();
+    const ai = await resolveConnection(store, user.id, runtime().secret);
+    const limited = ai?.source === 'server' && user.role !== 'admin';
+    const policy = limited ? await sharingPolicy(store) : null;
+    return json({
+      configured: !!ai,
+      model: ai?.model ?? '',
+      provider: ai ? PROVIDERS[ai.provider].label : '',
+      source: ai?.source ?? null,
+      remainingToday: policy
+        ? Math.max(0, policy.dailyLimit - (await usageToday(store, user.id)))
+        : null,
+    });
+  } catch (e) {
+    return failure(e);
+  }
 }

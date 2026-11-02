@@ -9,7 +9,7 @@ export default function ProjectTeam({
   owner: boolean;
 }) {
   const [data, setData] = useState<{
-      members: { userId: string; role: string }[];
+      members: { userId: string; role: string; name?: string | null }[];
       invitations: {
         id: string;
         role: string;
@@ -53,7 +53,7 @@ export default function ProjectTeam({
       {data?.members.map((m) => (
         <div className="team-row" key={m.userId}>
           <span title={m.userId}>
-            {m.userId} · {m.role}
+            {m.name ?? m.userId} · {m.role}
           </span>
           {owner && m.role !== 'owner' && (
             <button

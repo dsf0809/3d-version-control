@@ -1,3 +1,4 @@
+import type { SqlDatabase } from '../server/sqlite';
 import { buildGeometry } from '../cad/geometry';
 import { parseHistory, type Revision } from '../cad/history';
 import { sample, upgradeModel } from '../cad/model';
@@ -25,7 +26,7 @@ import {
 import * as turnTransactions from './turn-transactions';
 export { validateProject, validateTurn } from './store-shared';
 export class ProjectStore {
-  constructor(public db: D1Database) {}
+  constructor(public db: SqlDatabase) {}
   stmt(sql: string, ...args: unknown[]) {
     return this.db.prepare(sql).bind(...args);
   }

@@ -1,11 +1,6 @@
 import { projectStore } from '@/lib/projects/db';
-import {
-  ownerOf,
-  readBody,
-  json,
-  failure,
-  HttpError,
-} from '@/lib/projects/http';
+import { readBody, json, failure, HttpError } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 import { listShares, createShare, revokeShare } from '@/lib/projects/shares';
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Context) {
@@ -13,7 +8,7 @@ export async function GET(request: Request, context: Context) {
     return json(
       await listShares(
         projectStore(),
-        ownerOf(request),
+        await ownerOf(request),
         (await context.params).id,
       ),
     );
@@ -24,7 +19,7 @@ export async function GET(request: Request, context: Context) {
 export async function POST(request: Request, context: Context) {
   try {
     const store = projectStore(),
-      owner = ownerOf(request),
+      owner = await ownerOf(request),
       id = (await context.params).id,
       body = await readBody(request);
     if (body.action === 'create')

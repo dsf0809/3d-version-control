@@ -1,6 +1,7 @@
 import { prepareMerge } from '@/lib/projects/merge';
 import { projectStore } from '@/lib/projects/db';
-import { ownerOf, readBody, json, failure } from '@/lib/projects/http';
+import { readBody, json, failure } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -9,7 +10,7 @@ export async function POST(
     return json(
       await prepareMerge(
         projectStore(),
-        ownerOf(request),
+        await ownerOf(request),
         (await context.params).id,
         await readBody(request),
       ),

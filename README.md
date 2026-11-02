@@ -10,20 +10,23 @@ unchanged geometry is **gray**.
 Use it to explore trays, enclosures, simple brackets, and other parts built from
 basic solids. Start with the included tray demo—no API key needed.
 
+Run it on your own computer as a small server that your other devices and your
+coworkers can open in a browser, with accounts for each person and AI from
+OpenAI, Anthropic, Gemini, OpenRouter, or local models.
+
 Form is an early preview. Live AI design quality, slicer compatibility, and
 physical print results still need broader validation.
 
 ## Try the comparison demo
 
-After starting the app locally:
+After [starting the server](#run-your-workshop-server) and signing in:
 
-1. Choose **Continue to your workshop**.
-2. Open **Demo — tray comparison** from the project sidebar.
-3. Select **Changes Comparison** and compare **V0 → V1**. The tray divider moves
+1. Open **Demo — tray comparison** from the project sidebar.
+2. Select **Changes Comparison** and compare **V0 → V1**. The tray divider moves
    from right to left; red and green show its old and new locations.
-4. Use **From**, **To**, and **Swap** to inspect versions in either direction.
-5. Switch to **Model Original** to see the model without comparison colors.
-6. Use **Export & print** to download an accepted revision for your slicer.
+3. Use **From**, **To**, and **Swap** to inspect versions in either direction.
+4. Switch to **Model Original** to see the model without comparison colors.
+5. Use **Export & print** to download an accepted revision for your slicer.
 
 The demo contains saved models; it does not simulate a live AI response. It is
 created once per user, and reopening it preserves subsequent edits.
@@ -63,10 +66,13 @@ load teammates' latest accepted changes, and **Merge branches** to compare with 
 common ancestor, resolve conflicting values, and prepare a proposal for approval.
 Revisions record authors and merge parents. This is asynchronous collaboration;
 there are no live cursors, simultaneous co-editing, or external Git synchronization.
-Teammates need authenticated access to the same hosted instance. Local preview
-sign-in uses a single development identity.
+Teammates sign in to the same Form server; see [Run your workshop server](#run-your-workshop-server).
 
-## Run locally
+## Run your workshop server
+
+Form runs on one computer (a laptop, desktop or always-on PC) and everyone else
+opens it in a browser: your phone, tablet, other computers, or your coworkers'
+machines on the same network.
 
 **Requirements:** Node.js 22.13 or newer and pnpm.
 
@@ -76,34 +82,61 @@ cd form-3d-workshop
 pnpm install
 # Preserve an existing local configuration.
 test -f .env || cp .env.example .env
-pnpm db:migrate
-pnpm dev
+pnpm serve
 ```
 
-Open the URL printed in the terminal, normally `http://localhost:3000`, and choose
-**Continue to your workshop**. Local sign-in uses the Sites plugin's fixed test
-identity; it is intended for development.
+`pnpm serve` builds the app and starts the server; `pnpm start` restarts it
+without rebuilding. The terminal prints the addresses to use:
 
-You can explore the demo, compare versions, edit features manually, and export
-models without configuring an AI key.
-
-### Enable AI chat
-
-Set these values in your local `.env` file:
-
-```dotenv
-OPENAI_API_KEY=your-key-here
-OPENAI_MODEL=gpt-6-astra
+```text
+  On this computer:   http://localhost:3000
+  On your network:    http://192.168.1.23:3000
 ```
 
-`OPENAI_MODEL` is configurable. Use a model available to your API account that
-supports the Responses API and structured outputs. Restart the development server
-after changing the file.
+1. **Set up the administrator.** The first person to open the server creates the
+   administrator account. Projects from an earlier single-user installation on
+   this computer are kept and belong to that account.
+2. **Add people.** Open your name in the top-right corner → **People**. Either
+   add each person (they get a temporary password and choose their own on first
+   sign-in), or turn on **Self sign-up** and share the join code.
+3. **Share the network address.** Others open the "On your network" address. The
+   first time, macOS or Windows may ask whether Node.js may accept incoming
+   connections; allow it on private networks.
 
-The key stays on the server. Keep `.env` out of Git and never put the key in a
-`VITE_` or `NEXT_PUBLIC_` variable. The connection indicator checks configuration;
-it does not verify credentials, quota, or successful generation. Sending a real
-chat request uses your API account and may incur charges.
+Forgotten passwords are reset by an administrator (**Reset password**).
+Administrators can also disable accounts, which signs them out everywhere.
+
+For development with hot reload, use `pnpm dev` (local only by default).
+
+### Connect AI
+
+Each person can add their own API key under **AI connection**, and the
+administrator can share one connection with everyone. A personal key always takes
+precedence over the shared one.
+
+| Provider | Notes |
+| --- | --- |
+| OpenAI | Responses API with saved per-branch conversations |
+| Anthropic (Claude) | Defaults to `claude-opus-5-5` with structured output |
+| Google Gemini | Gemini's OpenAI-compatible endpoint; enter a model name |
+| OpenRouter | Any model OpenRouter offers, e.g. `provider/model` |
+| Ollama | Local models on the server computer; no key needed |
+| OpenAI-compatible | Any endpoint that serves `/chat/completions` (LM Studio, vLLM, …) |
+
+**Shared connection:** set it in **Account → Shared AI connection** or with
+`AI_PROVIDER`, `AI_API_KEY` and `AI_MODEL` in `.env` (the earlier
+`OPENAI_API_KEY`/`OPENAI_MODEL` still work). Requests on the shared key bill the
+server owner, so each non-admin person is limited to a number of requests per day
+(50 by default, adjustable there). Retried requests are not counted twice.
+
+**Custom endpoints** (Ollama and OpenAI-compatible) make the server fetch the URL
+you enter, so only administrators can set them unless `FORM_ALLOW_CUSTOM_AI_URLS=1`.
+
+Keys are encrypted at rest and never sent back to browsers. Saving a key does not
+make a test request; the first chat request does. Models must support structured
+JSON output; replies are validated before any geometry is saved, so a model that
+returns invalid designs fails safely without changing your project. Failed or
+interrupted requests are never retried automatically.
 
 Try a specific request such as:
 
@@ -160,7 +193,7 @@ fullscreen controls. **Focus model** hides comparison and history bars;
   changes. Slicers may replace display colors with their filament settings.
 - **No STL/3MF mesh import:** the editable import route accepts Form JSON only.
 - **Asynchronous team workflow:** no live presence, comments or project deletion.
-  Archiving is available. Local and hosted databases do not synchronize automatically.
+  Archiving is available. Separate servers do not synchronize with each other.
 - **Comparisons measure geometry:** moving a part appears as removal and addition.
   Feature highlights outline source primitives, not exact ownership of every
   Boolean surface. Legacy feature matching can be ambiguous after renames.
@@ -169,21 +202,30 @@ fullscreen controls. **Focus model** hides comparison and history bars;
 
 ## Data, conversations, and sharing
 
-Projects, model snapshots, proposals, messages, and branch conversation identifiers
-are stored in D1. The local database lives under `.wrangler/state/v3/d1`; hosted
-Sites use a separate managed database. Back up local state with the server stopped
-before moving or cleaning the project. Browser preferences are not the model archive.
+Projects, accounts, model snapshots, proposals, messages and queued AI jobs are
+stored in a SQLite database at `data/form.db` (set `FORM_DATA_DIR` to move it). The
+same folder holds `secret.key`, which encrypts saved API keys, unless
+`AI_KEY_ENCRYPTION_SECRET` is set. Browser preferences are not the model archive.
 
-Each branch creates an OpenAI Conversation on its first AI request. Project
-requirements, selected model data, and relevant history provide context for edits.
-Automatic conversation compaction is not implemented. Failed or cancelled requests
-clear the conversation association so the next request can reconstruct context;
-this does not delete the abandoned conversation at OpenAI.
+Run `pnpm backup` at any time, including while the server runs, to write a
+consistent copy of the database and the key file to `data/backups/`. Restore by
+stopping the server and copying both back. Keep backups private: they contain
+project data and encrypted keys.
+
+On first start, an existing database from the earlier Cloudflare-based local setup
+(`.wrangler/state`) is copied into the data folder. The original is left untouched.
+
+With OpenAI, each branch creates an OpenAI Conversation on its first AI request.
+Other providers do not keep server-side conversations; each request includes the
+project context and the branch's recent discussion instead. Project requirements,
+selected model data, and relevant history provide context for edits. Failed or
+cancelled requests clear the conversation association so the next request can
+reconstruct context; this does not delete the abandoned conversation at OpenAI.
 
 Share links expose only a fixed accepted model, not private chat or project notes.
 Owners can revoke links and disable the STL download option, but displayed geometry
-is still delivered to the recipient's browser. Hosted Sites access policies must
-also allow the intended recipient; creating a link does not change that policy.
+is still delivered to the recipient's browser. Share links work for anyone who can
+reach the server, without an account.
 
 ## Checks
 
@@ -193,26 +235,39 @@ pnpm typecheck
 pnpm build
 ```
 
-Tests use mock AI responses and isolated local databases; no API key or paid
-requests are required. Run `pnpm test:worker:offline` for the background-job
-integration check. Offline tests verify application behavior, not AI design quality.
+Tests use mock AI responses and isolated in-memory databases; no API key or paid
+requests are required. They cover accounts, sessions, AI connections and quotas,
+every provider protocol and the background job runner. Offline tests verify
+application behavior, not AI design quality.
 
-## Hosting
+## Network access and security
 
-The app uses React/Vinext, Cloudflare Workers, D1, and the Sites authentication
-integration. Local sign-in uses a fixed test identity and is only suitable for
-local use. A public deployment needs verified authentication and usage limits
-for paid AI requests.
+The server is a single Node.js process with an embedded SQLite database; there is
+no cloud service to configure. Keep these in mind before sharing it:
 
-Configure hosted secrets and a D1 database separately; local environment values
-and database records are not uploaded automatically. Apply the migrations in
-`drizzle/` to the hosted database. Preserve the `GENERATION_JOBS` Durable Object
-binding and `generation-jobs-v1` migration from `vite.config.ts`. The production
-build emits Worker configuration in `dist/server/wrangler.json`.
+- **Use trusted networks.** On a home or office network, plain `http://` works,
+  but traffic, including passwords, is not encrypted. Avoid public Wi-Fi.
+- **Reaching it from elsewhere.** Don't forward a router port to the server.
+  Prefer one of:
+  - [Tailscale](https://tailscale.com) (or another private VPN): install it on the
+    server and each device, then open `http://<server-name>:3000`. Only your
+    tailnet can connect, and traffic is encrypted.
+  - [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+    or `tailscale funnel`: gives a public `https://` address without opening
+    ports. Anyone can reach the sign-in page, so keep self sign-up off or rotate
+    the join code, and use strong passwords.
+  - A reverse proxy with HTTPS (Caddy, nginx) on your network.
 
-The checked-in `.openai/hosting.json` contains generic resource bindings, not a
-hosted project association. Configure your own project when deploying through Sites.
-Never include `.env` or `.wrangler/state` in deployment archives.
+  Behind a tunnel or proxy that sets `X-Forwarded-*` headers, set
+  `FORM_TRUST_PROXY=1` so sessions use secure cookies and sign-in rate limits see
+  real client addresses.
+- **Restrict to this computer** with `HOST=127.0.0.1`.
+- **Sign-ins** use hashed passwords (scrypt), HTTP-only session cookies valid for
+  30 days, and a lockout after repeated failed attempts. Changing a password signs
+  out other devices.
+- **Keep the computer awake** while others use the server. To run it in the
+  background, use a process manager such as `pm2`, a macOS LaunchAgent or a
+  Windows scheduled task that runs `pnpm start` in the project folder.
 
 ## Help shape the project
 

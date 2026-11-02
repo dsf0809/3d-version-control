@@ -1,3 +1,4 @@
+import type { SqlStatement } from '../server/sqlite';
 import { HttpError } from './http';
 import { listProposals } from './proposals';
 import type { ProjectStore } from './store';
@@ -152,7 +153,7 @@ export async function commit(
     newRevision = result.model ? result.revisionId : input.revisionId;
   const guard = `EXISTS (SELECT 1 FROM branches WHERE id=? AND lock_token=? AND head_revision_id=? AND EXISTS (SELECT 1 FROM turns t JOIN projects p ON p.id=t.project_id WHERE t.id=branches.lock_token AND (t.actor_id=p.owner_id OR EXISTS (SELECT 1 FROM project_members m WHERE m.project_id=p.id AND m.user_id=t.actor_id AND m.role='editor')))${automatic ? ' AND lock_until>' + Date.now() + " AND EXISTS (SELECT 1 FROM projects WHERE projects.id=branches.project_id AND approval_mode='auto')" : ''})`;
   const args = [input.branchId, input.requestId, input.revisionId];
-  const stmts: D1PreparedStatement[] = [];
+  const stmts: SqlStatement[] = [];
   if (result.model)
     stmts.push(
       this.stmt(

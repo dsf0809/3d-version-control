@@ -174,3 +174,58 @@ export const projectInvitations = sqliteTable('project_invitations', {
 });
 
 export const aiCredentials = sqliteTable('ai_credentials', { ownerId: text('owner_id').primaryKey(), encryptedKey: text('encrypted_key').notNull() });
+
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  username: text('username').notNull().unique(),
+  displayName: text('display_name').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  role: text('role').notNull().default('member'),
+  disabled: integer('disabled').notNull().default(0),
+  mustChangePassword: integer('must_change_password').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+});
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    expiresAt: integer('expires_at').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('sessions_user').on(t.userId)],
+);
+export const serverSettings = sqliteTable('server_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+// owner_id '@server' holds the host's shared connection.
+export const aiConnections = sqliteTable('ai_connections', {
+  ownerId: text('owner_id').primaryKey(),
+  provider: text('provider').notNull(),
+  model: text('model').notNull().default(''),
+  baseUrl: text('base_url'),
+  encryptedKey: text('encrypted_key'),
+  updatedAt: text('updated_at').notNull(),
+});
+export const aiUsage = sqliteTable(
+  'ai_usage',
+  {
+    userId: text('user_id').notNull(),
+    day: text('day').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [uniqueIndex('ai_usage_user_day').on(t.userId, t.day)],
+);
+export const generationJobs = sqliteTable(
+  'generation_jobs',
+  {
+    id: text('id').primaryKey(),
+    data: text('data').notNull().default('{}'),
+    alarmAt: integer('alarm_at'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('generation_jobs_alarm').on(t.alarmAt)],
+);

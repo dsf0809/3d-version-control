@@ -1,3 +1,4 @@
+import type { AIStatus } from '@/components/ai-connection';
 import { saveExport } from './download';
 'use client';
 import { useEffect, useRef, useState } from 'react';
@@ -115,10 +116,7 @@ export function useWorkshop() {
   const [tool, setTool] = useState<
     'edit' | 'locks' | 'export' | 'sharing' | null
   >(null);
-  const [status, setStatus] = useState<{
-    configured: boolean;
-    model: string;
-  } | null>(null);
+  const [status, setStatus] = useState<AIStatus | null>(null);
   const [statusError, setStatusError] = useState(false);
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [comparing, setComparing] = useState(false);
@@ -132,7 +130,7 @@ export function useWorkshop() {
     return fetch('/api/status')
       .then((r) => {
         if (!r.ok) throw new Error();
-        return r.json() as Promise<{ configured: boolean; model: string }>;
+        return r.json() as Promise<AIStatus>;
       })
       .then(setStatus)
       .catch(() => setStatusError(true));

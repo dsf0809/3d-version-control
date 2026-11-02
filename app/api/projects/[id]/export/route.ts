@@ -1,6 +1,7 @@
 import { getRevision } from '@/lib/projects/revisions';
 import { projectStore } from '@/lib/projects/db';
-import { ownerOf, failure, HttpError } from '@/lib/projects/http';
+import { failure, HttpError } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 import { buildGeometry, binarySTL } from '@/lib/cad/geometry';
 import { threeMF } from '@/lib/cad/three-mf';
 export async function GET(
@@ -10,7 +11,7 @@ export async function GET(
   try {
     const revisionId = new URL(request.url).searchParams.get('revision');
     if (!revisionId) throw new HttpError(400, 'Choose an accepted revision.');
-    const revision = await getRevision(projectStore(), ownerOf(request), (await context.params).id, revisionId);
+    const revision = await getRevision(projectStore(), await ownerOf(request), (await context.params).id, revisionId);
     if (new URL(request.url).searchParams.get('format') === 'json')
       return new Response(JSON.stringify(revision.model, null, 2), {
         headers: {

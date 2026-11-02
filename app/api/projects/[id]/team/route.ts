@@ -1,17 +1,12 @@
 import { team, invite, removeMember, revokeInvite } from '@/lib/projects/team';
 import { projectStore } from '@/lib/projects/db';
-import {
-  ownerOf,
-  readBody,
-  json,
-  failure,
-  HttpError,
-} from '@/lib/projects/http';
+import { readBody, json, failure, HttpError } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Context) {
   try {
     return json(
-      await team(projectStore(), ownerOf(request), (await context.params).id),
+      await team(projectStore(), await ownerOf(request), (await context.params).id),
     );
   } catch (e) {
     return failure(e);
@@ -19,7 +14,7 @@ export async function GET(request: Request, context: Context) {
 }
 export async function POST(request: Request, context: Context) {
   try {
-    const actor = ownerOf(request),
+    const actor = await ownerOf(request),
       id = (await context.params).id,
       body = await readBody(request),
       store = projectStore();

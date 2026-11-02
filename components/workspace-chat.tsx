@@ -110,7 +110,7 @@ export default function WorkspaceChat({
                 {statusError
                   ? 'Connection status unavailable.'
                   : status
-                    ? 'The sample is ready to explore. Connect your API to start designing.'
+                    ? 'The sample is ready to explore. Add an API key to start designing.'
                     : 'Checking AI connection…'}{' '}
                 <button onClick={() => setSetup(true)}>Set up AI</button>
               </div>
@@ -296,7 +296,11 @@ export default function WorkspaceChat({
           }
         />
         <div className="composer-bottom">
-          <span>{status?.configured ? status.model : 'API not connected'}</span>
+          <span>
+            {status?.configured
+              ? `${status.model}${status.source === 'server' ? ' · shared' : ''}${status.remainingToday != null ? ` · ${status.remainingToday} left today` : ''}`
+              : 'API not connected'}
+          </span>
           {busy ? (
             <button
               type="button"

@@ -1,22 +1,17 @@
 import { projectSnapshot } from '@/lib/projects/revisions';
 import { projectStore } from '@/lib/projects/db';
-import {
-  ownerOf,
-  readBody,
-  json,
-  failure,
-  HttpError,
-} from '@/lib/projects/http';
+import { readBody, json, failure, HttpError } from '@/lib/projects/http';
+import { ownerOf } from '@/lib/server/auth';
 export async function GET(request: Request) {
   try {
-    return json(await projectStore().list(ownerOf(request)));
+    return json(await projectStore().list(await ownerOf(request)));
   } catch (e) {
     return failure(e);
   }
 }
 export async function POST(request: Request) {
   try {
-    const owner = ownerOf(request),
+    const owner = await ownerOf(request),
       body = await readBody(request, 2000000);
     const store = projectStore();
     const respond = async (p: import('@/lib/projects/types').ProjectDetail) =>

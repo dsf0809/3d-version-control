@@ -582,12 +582,48 @@ button svg {
   line-height: 1.7;
   margin-bottom: 28px;
 }
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+.auth-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.auth-field input {
+  border: 1px solid #d9dccf;
+  border-radius: 10px;
+  padding: 11px 12px;
+  background: #fff;
+  font-size: 15px;
+  min-width: 0;
+}
+.auth-form button,
 .signin-screen a {
   display: inline-block;
   background: #252b26;
   color: #fff;
   border-radius: 10px;
   padding: 14px 20px;
+  justify-self: start;
+}
+.auth-form button:disabled {
+  opacity: 0.6;
+}
+.signin-screen .auth-error {
+  color: #b42318;
+  margin: 0;
+}
+.auth-switch {
+  margin-top: 18px;
+  text-decoration: underline;
+  color: #252b26;
+}
+.signin-screen .auth-note {
+  font-size: 13px;
+  margin: 18px 0 0;
 }
 .project-controls {
   display: flex;
