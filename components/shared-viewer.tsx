@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { Box, Download } from 'lucide-react';
 import ModelViewer from './model-viewer';
 import { compileModel, type Compiled } from '@/lib/cad/compile';
 import type { Model } from '@/lib/cad/model';
@@ -37,29 +38,42 @@ export default function SharedViewer({ token }: { token: string }) {
     return () => abort.abort();
   }, [token]);
   return (
-    <main className="studio">
+    <main className="studio shared">
       <header className="topbar">
-        <strong>{data?.model.name ?? 'Shared model'}</strong>
-        <span>Read-only · {data ? `V${data.ordinal}` : 'Loading'}</span>
+        <a className="brand" href="/">
+          <Box size={18} />
+          <b>
+            form<span>.</span>
+          </b>
+        </a>
+        <strong>{data?.model.name ?? '…'}</strong>
+        {data && <span className="badge">V{data.ordinal}</span>}
+        <span className="grow" />
         {data?.allowExport && (
           <a
+            className="quiet line"
             href={`/api/shared/${token}?export=stl`}
             referrerPolicy="no-referrer"
           >
-            Download STL
+            <Download size={15} />
+            STL
           </a>
         )}
       </header>
-      <section className="viewer-panel" style={{ flex: 1 }}>
-        {error ? (
-          <p role="alert">{error}</p>
-        ) : (
-          <ModelViewer
-            model={data?.model}
-            geometry={geometry}
-            comparison={null}
-          />
-        )}
+      <section className="viewer-panel" aria-label="3D visualization">
+        <div className="model-stage">
+          {error ? (
+            <p role="alert" className="pad">
+              {error}
+            </p>
+          ) : (
+            <ModelViewer
+              model={data?.model}
+              geometry={geometry}
+              comparison={null}
+            />
+          )}
+        </div>
       </section>
     </main>
   );

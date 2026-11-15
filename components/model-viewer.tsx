@@ -126,10 +126,9 @@ export default function ModelViewer({
       {comparison && detailsOpen && (
         <section id={detailsId} className="viewer-change-details" aria-label="Change details"
           onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setDetailsOpen(false); detailsToggle.current?.focus(); } }}>
-          <header><strong>Change details</strong><button type="button" aria-label="Close change details" onClick={() => { setDetailsOpen(false); detailsToggle.current?.focus(); }}><X size={16} /></button></header>
-          <p>Read-only changes between these versions. Select a feature to highlight its before and after bounds.</p>
+          <header><strong>Changes</strong><button type="button" aria-label="Close change details" onClick={() => { setDetailsOpen(false); detailsToggle.current?.focus(); }}><X size={16} /></button></header>
           <div className="viewer-change-list">
-            {changes.length === 0 && <p>No feature changes.</p>}
+            {changes.length === 0 && <p>No changes</p>}
             {changes.map((change) => <button type="button" key={change.id} aria-pressed={highlight?.id === change.id}
               onClick={() => onHighlightChange?.(highlight?.id === change.id ? null : change.id)}>
               <strong>{change.name}</strong>{change.details.map((detail) => <span key={detail}>{detail}</span>)}

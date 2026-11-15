@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Box } from 'lucide-react';
 
 type Mode = 'setup' | 'login' | 'signup' | 'change';
 async function post(url: string, body: unknown) {
@@ -14,27 +15,11 @@ async function post(url: string, body: unknown) {
   return data;
 }
 
-const copy: Record<Mode, { title: string; lead: string; action: string }> = {
-  setup: {
-    title: 'Set up your workshop server.',
-    lead: 'Create the administrator account. You can add teammates afterwards; existing projects on this computer stay with this account.',
-    action: 'Create administrator',
-  },
-  login: {
-    title: 'Your ideas, ready to continue.',
-    lead: 'Sign in to open your projects, conversations and every model iteration.',
-    action: 'Sign in',
-  },
-  signup: {
-    title: 'Join this workshop.',
-    lead: 'Create an account with the join code from the server administrator.',
-    action: 'Create account',
-  },
-  change: {
-    title: 'Choose a new password.',
-    lead: 'Your account uses a temporary password. Choose your own to continue.',
-    action: 'Save password',
-  },
+const copy: Record<Mode, { title: string; action: string }> = {
+  setup: { title: 'Create the admin account', action: 'Create account' },
+  login: { title: 'Sign in', action: 'Sign in' },
+  signup: { title: 'Join', action: 'Create account' },
+  change: { title: 'Choose a new password', action: 'Save' },
 };
 
 export default function AuthScreen({
@@ -79,12 +64,13 @@ export default function AuthScreen({
     }
   };
   const field = (name: string, label: string, type = 'text', auto?: string) => (
-    <label className="auth-field">
-      <span>{label}</span>
+    <label>
+      {label}
       <input
         name={name}
         type={type}
         required={name !== 'displayName'}
+        minLength={auto === 'new-password' ? 8 : undefined}
         autoComplete={auto}
         autoCapitalize="none"
         spellCheck={false}
@@ -93,12 +79,16 @@ export default function AuthScreen({
     </label>
   );
   return (
-    <main className="signin-screen">
-      <div>
-        <strong className="signin-brand">form.</strong>
+    <main className="auth">
+      <div className="auth-card">
+        <span className="brand">
+          <Box size={20} />
+          <b>
+            form<span>.</span>
+          </b>
+        </span>
         <h1>{text.title}</h1>
-        <p>{text.lead}</p>
-        <form className="auth-form" onSubmit={submit} key={mode}>
+        <form className="form" onSubmit={submit} key={mode}>
           {mode === 'change' ? (
             <>
               {field(
@@ -107,71 +97,50 @@ export default function AuthScreen({
                 'password',
                 'current-password',
               )}
-              {field(
-                'password',
-                'New password (8+ characters)',
-                'password',
-                'new-password',
-              )}
-              {field(
-                'confirm',
-                'Confirm new password',
-                'password',
-                'new-password',
-              )}
+              {field('password', 'New password', 'password', 'new-password')}
+              {field('confirm', 'Repeat', 'password', 'new-password')}
             </>
           ) : (
             <>
               {mode === 'signup' && field('code', 'Join code', 'text', 'off')}
               {field('username', 'Username', 'text', 'username')}
               {mode !== 'login' &&
-                field('displayName', 'Display name (optional)', 'text', 'name')}
+                field('displayName', 'Name · optional', 'text', 'name')}
               {field(
                 'password',
-                mode === 'login' ? 'Password' : 'Password (8+ characters)',
+                'Password',
                 'password',
                 mode === 'login' ? 'current-password' : 'new-password',
               )}
               {mode !== 'login' &&
-                field(
-                  'confirm',
-                  'Confirm password',
-                  'password',
-                  'new-password',
-                )}
+                field('confirm', 'Repeat', 'password', 'new-password')}
             </>
           )}
-          {error && (
-            <p role="alert" className="auth-error">
-              {error}
-            </p>
-          )}
-          <button type="submit" disabled={busy}>
-            {busy ? 'Please wait…' : text.action}
+          {error && <p role="alert">{error}</p>}
+          <button className="quiet primary" type="submit" disabled={busy}>
+            {busy ? '…' : text.action}
           </button>
         </form>
         {mode === 'login' && signupOpen && (
           <button
             type="button"
-            className="auth-switch"
+            className="quiet"
             onClick={() => setMode('signup')}
           >
-            Have a join code? Create an account
+            Join with a code
           </button>
         )}
         {mode === 'signup' && (
           <button
             type="button"
-            className="auth-switch"
+            className="quiet"
             onClick={() => setMode('login')}
           >
-            Already have an account? Sign in
+            Sign in instead
           </button>
         )}
         {mode === 'login' && (
-          <p className="auth-note">
-            Forgot your password? Ask the server administrator to reset it.
-          </p>
+          <p className="note">Forgot it? Your admin can reset it.</p>
         )}
       </div>
     </main>

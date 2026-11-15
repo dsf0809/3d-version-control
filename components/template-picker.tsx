@@ -4,6 +4,9 @@ import {
   type TemplateId,
   type TemplateDimensions,
 } from '@/lib/cad/templates';
+
+const labels = { width: 'W', depth: 'D', height: 'H', wall: 'Wall' } as const;
+
 export default function TemplatePicker({
   value,
   dimensions,
@@ -16,9 +19,9 @@ export default function TemplatePicker({
   disabled?: boolean;
 }) {
   return (
-    <div className="template-picker">
+    <>
       <label>
-        Starting model
+        Shape
         <select
           aria-label="Starting model"
           disabled={disabled}
@@ -35,31 +38,28 @@ export default function TemplatePicker({
           ))}
         </select>
       </label>
-      <details>
-        <summary>Starting dimensions · mm</summary>
-        <div className="template-dimensions">
-          {(['width', 'depth', 'height', 'wall'] as const).map((key) => (
-            <label key={key}>
-              {key}
-              <input
-                aria-label={`Starting ${key}`}
-                disabled={disabled}
-                type="number"
-                min="0.2"
-                max="500"
-                step="0.1"
-                value={dimensions[key]}
-                onChange={(e) =>
-                  onChange(value, {
-                    ...dimensions,
-                    [key]: Number(e.target.value),
-                  })
-                }
-              />
-            </label>
-          ))}
-        </div>
-      </details>
-    </div>
+      <div className="fields four">
+        {(['width', 'depth', 'height', 'wall'] as const).map((key) => (
+          <label key={key}>
+            {labels[key]} · mm
+            <input
+              aria-label={`Starting ${key}`}
+              disabled={disabled}
+              type="number"
+              min="0.2"
+              max="500"
+              step="0.1"
+              value={dimensions[key]}
+              onChange={(e) =>
+                onChange(value, {
+                  ...dimensions,
+                  [key]: Number(e.target.value),
+                })
+              }
+            />
+          </label>
+        ))}
+      </div>
+    </>
   );
 }

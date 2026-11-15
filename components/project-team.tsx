@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { api } from '@/lib/projects/client';
 export default function ProjectTeam({
   projectId,
@@ -44,85 +45,81 @@ export default function ProjectTeam({
     }
   };
   return (
-    <details className="team-panel">
-      <summary>Team & access {data ? `(${data.members.length})` : ''}</summary>
-      <p>
-        Editors contribute on their own branches. The owner reviews merges into
-        Main. Viewers can read and download accepted designs.
-      </p>
-      {data?.members.map((m) => (
-        <div className="team-row" key={m.userId}>
-          <span title={m.userId}>
-            {m.name ?? m.userId} · {m.role}
-          </span>
-          {owner && m.role !== 'owner' && (
-            <button
-              type="button"
-              className="quiet"
-              disabled={busy}
-              onClick={() => void act({ action: 'remove', userId: m.userId })}
-            >
-              Remove access
-            </button>
-          )}
-        </div>
-      ))}
-      {owner && (
-        <>
-          <div className="team-row">
-            <select
-              aria-label="Invitation role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="editor">Editor</option>
-              <option value="viewer">Viewer</option>
-            </select>
-            <button
-              type="button"
-              className="quiet"
-              disabled={busy}
-              onClick={() => void act({ action: 'invite', role })}
-            >
-              Create invitation
-            </button>
-          </div>
-          <p>
-            Each invitation works once and expires after seven days. Share it
-            privately with the intended teammate.
-          </p>
-          {link && (
-            <label>
-              Invitation link
-              <input
-                aria-label="Invitation link"
-                readOnly
-                value={link}
-                onFocus={(e) => e.target.select()}
-              />
-            </label>
-          )}
-          {data?.invitations
+    <section className="form team" aria-label="Team">
+      <ul className="list">
+        {data?.members.map((m) => (
+          <li key={m.userId}>
+            <span title={m.userId}>
+              <strong>{m.name ?? m.userId}</strong>
+              <small>{m.role}</small>
+            </span>
+            {owner && m.role !== 'owner' && (
+              <button
+                type="button"
+                className="quiet icon"
+                disabled={busy}
+                aria-label={`Remove ${m.name ?? m.userId}`}
+                onClick={() => void act({ action: 'remove', userId: m.userId })}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </li>
+        ))}
+        {owner &&
+          data?.invitations
             .filter((i) => !i.revoked && !i.usedBy && i.expiresAt > Date.now())
             .map((i) => (
-              <div className="team-row" key={i.id}>
+              <li key={i.id} className="off">
                 <span>
-                  {i.role} invitation · expires{' '}
-                  {new Date(i.expiresAt).toLocaleDateString()}
+                  <strong>Invited {i.role}</strong>
+                  <small>
+                    until {new Date(i.expiresAt).toLocaleDateString()}
+                  </small>
                 </span>
                 <button
                   type="button"
-                  className="quiet"
+                  className="quiet icon"
                   disabled={busy}
+                  aria-label="Revoke invitation"
                   onClick={() => void act({ action: 'revoke', id: i.id })}
                 >
-                  Revoke
+                  <X size={14} />
                 </button>
-              </div>
+              </li>
             ))}
-        </>
+      </ul>
+      {owner && (
+        <div className="row">
+          <select
+            aria-label="Invitation role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="editor">Editor</option>
+            <option value="viewer">Viewer</option>
+          </select>
+          <button
+            type="button"
+            className="quiet line"
+            disabled={busy}
+            onClick={() => void act({ action: 'invite', role })}
+          >
+            Invite link
+          </button>
+          {link && (
+            <input
+              className="grow"
+              aria-label="Invitation link"
+              title="Works once, for seven days"
+              readOnly
+              value={link}
+              onFocus={(e) => e.target.select()}
+            />
+          )}
+        </div>
       )}
       {error && <p role="alert">{error}</p>}
-    </details>
+    </section>
   );
 }

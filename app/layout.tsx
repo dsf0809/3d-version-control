@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import './styles/workspace.css';
 export const metadata: Metadata = {
   title: 'Form — 3D Workshop',
   icons: { icon: '/favicon.svg' },

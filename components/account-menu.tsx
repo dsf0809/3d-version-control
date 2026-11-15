@@ -1,12 +1,14 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { UserRound } from 'lucide-react';
+import { Ellipsis } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from './ui/dialog';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ConnectionForm, type ProviderOption } from './ai-connection';
 
 export type AccountUser = {
@@ -67,19 +69,22 @@ export default function AccountMenu({ user }: { user: AccountUser }) {
   return (
     <>
       <button
-        className="quiet"
+        className="avatar"
         onClick={() => setOpen(true)}
-        title={`Signed in as @${user.username}`}
+        aria-label={`Account · ${user.displayName}`}
+        title={`${user.displayName} (@${user.username})`}
       >
-        <UserRound size={15} /> {user.displayName}
+        {user.displayName.trim().charAt(0).toUpperCase() || '?'}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="account-dialog sm:max-w-xl p-6">
-          <DialogTitle>Account</DialogTitle>
-          <DialogDescription>
-            Signed in as {user.displayName} (@{user.username})
-            {user.admin ? ' · Administrator' : ''}
-          </DialogDescription>
+        <DialogContent className="dialog sm:max-w-lg">
+          <DialogTitle>
+            {user.displayName}
+            <span className="title-tag">
+              @{user.username}
+              {user.admin ? ' · Admin' : ''}
+            </span>
+          </DialogTitle>
           {open && <AccountBody user={user} />}
         </DialogContent>
       </Dialog>
@@ -100,56 +105,45 @@ function AccountBody({ user }: { user: AccountUser }) {
       setError(e instanceof Error ? e.message : 'Request failed.');
     }
   }, []);
-  return (
-    <div className="account-body">
-      {error && (
-        <p role="alert" className="account-error">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p role="status" className="account-message">
-          {message}
-        </p>
-      )}
-      <section>
-        <h3>Password</h3>
-        <form
-          className="account-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const f = new FormData(form);
-            void run(async () => {
-              await call('/api/auth/password', 'POST', {
-                current: f.get('current'),
-                next: f.get('next'),
-              });
-              form.reset();
-            }, 'Password changed. Other devices were signed out.');
-          }}
-        >
-          <input
-            name="current"
-            type="password"
-            placeholder="Current password"
-            autoComplete="current-password"
-            required
-          />
-          <input
-            name="next"
-            type="password"
-            placeholder="New password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-          />
-          <button className="quiet" type="submit">
-            Change
-          </button>
-        </form>
-      </section>
-      <section>
+  const you = (
+    <div className="form">
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const f = new FormData(form);
+          void run(async () => {
+            await call('/api/auth/password', 'POST', {
+              current: f.get('current'),
+              next: f.get('next'),
+            });
+            form.reset();
+          }, 'Password changed. Other devices were signed out.');
+        }}
+      >
+        <input
+          name="current"
+          type="password"
+          aria-label="Current password"
+          placeholder="Current password"
+          autoComplete="current-password"
+          required
+        />
+        <input
+          name="next"
+          type="password"
+          aria-label="New password"
+          placeholder="New password"
+          autoComplete="new-password"
+          minLength={8}
+          required
+        />
+        <button className="quiet line" type="submit">
+          Change
+        </button>
+      </form>
+      <div className="row end">
         <button
           className="quiet"
           onClick={() =>
@@ -161,9 +155,38 @@ function AccountBody({ user }: { user: AccountUser }) {
         >
           Sign out
         </button>
-      </section>
-      {user.admin && <AdminPanel run={run} self={user.username} />}
+      </div>
     </div>
+  );
+  const notices = (
+    <>
+      {error && <p role="alert">{error}</p>}
+      {message && (
+        <p role="status" className="note">
+          {message}
+        </p>
+      )}
+    </>
+  );
+  if (!user.admin)
+    return (
+      <>
+        {notices}
+        {you}
+      </>
+    );
+  return (
+    <Tabs defaultValue="you" className="tabs">
+      <TabsList aria-label="Account sections">
+        <TabsTrigger value="you">You</TabsTrigger>
+        <TabsTrigger value="people">People</TabsTrigger>
+        <TabsTrigger value="signup">Sign-up</TabsTrigger>
+        <TabsTrigger value="ai">Shared AI</TabsTrigger>
+      </TabsList>
+      {notices}
+      <TabsContent value="you">{you}</TabsContent>
+      <AdminPanel run={run} self={user.username} />
+    </Tabs>
   );
 }
 
@@ -201,76 +224,83 @@ function AdminPanel({
     /localhost|127\.0\.0\.1/.test(here) && settings?.addresses.length
       ? settings.addresses.join(' or ')
       : here;
+  const patch = (body: Record<string, unknown>) =>
+    run(async () => setMembers(await call('/api/admin/users', 'PATCH', body)));
   return (
     <>
-      <section>
-        <h3>People</h3>
-        <ul className="account-list">
+      <TabsContent value="people" className="form">
+        <ul className="list">
           {members.map((m) => (
             <li key={m.id}>
               <span>
-                <strong>{m.displayName}</strong> @{m.username} · {m.role}
-                {m.disabled ? ' · disabled' : ''}
-                {m.mustChangePassword ? ' · temporary password' : ''}
+                <strong>{m.displayName}</strong>
+                <small>
+                  @{m.username}
+                  {m.role === 'admin' ? ' · admin' : ''}
+                  {m.disabled ? ' · disabled' : ''}
+                  {m.mustChangePassword ? ' · temporary password' : ''}
+                </small>
               </span>
-              <span className="account-actions">
-                <button
-                  className="quiet"
-                  onClick={() => {
-                    const password = tempPassword();
-                    void run(async () => {
-                      setMembers(
-                        await call('/api/admin/users', 'PATCH', {
-                          userId: m.id,
-                          password,
-                        }),
-                      );
-                      setCreated({ username: m.username, password });
-                    });
-                  }}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="quiet icon"
+                  aria-label={`Manage ${m.displayName}`}
                 >
-                  Reset password
-                </button>
-                {m.username !== self && (
-                  <>
-                    <button
-                      className="quiet"
-                      onClick={() =>
-                        void run(async () =>
-                          setMembers(
-                            await call('/api/admin/users', 'PATCH', {
-                              userId: m.id,
-                              disabled: !m.disabled,
-                            }),
-                          ),
-                        )
-                      }
-                    >
-                      {m.disabled ? 'Enable' : 'Disable'}
-                    </button>
-                    <button
-                      className="quiet"
-                      onClick={() =>
-                        void run(async () =>
-                          setMembers(
-                            await call('/api/admin/users', 'PATCH', {
-                              userId: m.id,
-                              role: m.role === 'admin' ? 'member' : 'admin',
-                            }),
-                          ),
-                        )
-                      }
-                    >
-                      {m.role === 'admin' ? 'Make member' : 'Make admin'}
-                    </button>
-                  </>
-                )}
-              </span>
+                  <Ellipsis size={15} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const password = tempPassword();
+                      void run(async () => {
+                        setMembers(
+                          await call('/api/admin/users', 'PATCH', {
+                            userId: m.id,
+                            password,
+                          }),
+                        );
+                        setCreated({ username: m.username, password });
+                      });
+                    }}
+                  >
+                    Reset password
+                  </DropdownMenuItem>
+                  {m.username !== self && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          void patch({ userId: m.id, disabled: !m.disabled })
+                        }
+                      >
+                        {m.disabled ? 'Enable' : 'Disable'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          void patch({
+                            userId: m.id,
+                            role: m.role === 'admin' ? 'member' : 'admin',
+                          })
+                        }
+                      >
+                        {m.role === 'admin' ? 'Make member' : 'Make admin'}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </li>
           ))}
         </ul>
+        {created && (
+          <p className="callout" role="status">
+            Temporary password for <strong>@{created.username}</strong>:{' '}
+            <code>{created.password}</code>
+            <br />
+            They choose their own at first sign-in · {joinUrl}
+          </p>
+        )}
         <form
-          className="account-row"
+          className="row"
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.currentTarget;
@@ -293,36 +323,34 @@ function AdminPanel({
         >
           <input
             name="username"
+            aria-label="Username"
             placeholder="Username"
             autoCapitalize="none"
             required
           />
-          <input name="displayName" placeholder="Display name" />
-          <button className="quiet" type="submit">
-            Add person
+          <input
+            name="displayName"
+            aria-label="Display name"
+            placeholder="Display name"
+          />
+          <button className="quiet line" type="submit">
+            Add
           </button>
         </form>
-        {created && (
-          <p className="account-message" role="status">
-            Give <strong>@{created.username}</strong> this temporary password:{' '}
-            <code>{created.password}</code>. They will choose their own when
-            they first sign in at {joinUrl}.
-          </p>
-        )}
-      </section>
-      <section>
-        <h3>Self sign-up</h3>
+      </TabsContent>
+      <TabsContent value="signup" className="form">
         {settings?.joinCode ? (
-          <p>
-            Anyone with the join code <code>{settings.joinCode}</code> can
-            create an account at {joinUrl}.
+          <p className="callout">
+            Join code <code>{settings.joinCode}</code>
+            <br />
+            {joinUrl}
           </p>
         ) : (
-          <p>Self sign-up is off. Only administrators can add people.</p>
+          <p className="note">Off — only admins add people.</p>
         )}
-        <div className="account-row">
+        <div className="row">
           <button
-            className="quiet"
+            className="quiet line"
             onClick={() =>
               void run(async () =>
                 setSettings(
@@ -333,7 +361,7 @@ function AdminPanel({
               )
             }
           >
-            {settings?.joinCode ? 'New join code' : 'Turn on with a join code'}
+            {settings?.joinCode ? 'New code' : 'Turn on'}
           </button>
           {settings?.joinCode && (
             <button
@@ -352,21 +380,19 @@ function AdminPanel({
             </button>
           )}
         </div>
-      </section>
-      <section>
-        <h3>Shared AI connection</h3>
-        <p>
+      </TabsContent>
+      <TabsContent value="ai" className="form">
+        <p className="note">
           {serverAI?.saved
-            ? `Server connection: ${serverAI.saved.provider} · ${serverAI.saved.model}`
+            ? `${serverAI.saved.provider} · ${serverAI.saved.model}`
             : serverAI?.environment
-              ? `Using the server environment: ${serverAI.environment.provider} · ${serverAI.environment.model}`
-              : 'No shared connection. Each person must add their own key.'}{' '}
-          People with their own key always use it instead. Requests on the
-          shared key bill the server owner.
+              ? `Server environment · ${serverAI.environment.provider} · ${serverAI.environment.model}`
+              : 'No shared connection'}
+          . Personal keys take priority; shared requests bill the server owner.
         </p>
         {settings && (
           <form
-            className="account-row"
+            className="row"
             onSubmit={(e) => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);
@@ -383,25 +409,27 @@ function AdminPanel({
               );
             }}
           >
-            <label className="account-check">
+            <label className="check">
               <input
                 type="checkbox"
                 name="shared"
                 defaultChecked={settings.sharing.shared}
-              />{' '}
+              />
               Share with everyone
             </label>
-            <label className="account-check">
-              Requests per person per day
+            <label className="check">
               <input
                 name="dailyLimit"
                 type="number"
                 min={0}
                 max={100000}
+                aria-label="Requests per person per day"
                 defaultValue={settings.sharing.dailyLimit}
               />
+              per person / day
             </label>
-            <button className="quiet" type="submit">
+            <span className="grow" />
+            <button className="quiet line" type="submit">
               Save
             </button>
           </form>
@@ -411,7 +439,7 @@ function AdminPanel({
             providers={providers}
             current={serverAI?.saved ?? null}
             canSetEndpoint
-            submitLabel="Save server connection"
+            submitLabel="Save connection"
             onSave={(body) =>
               run(
                 async () =>
@@ -435,7 +463,7 @@ function AdminPanel({
             }
           />
         )}
-      </section>
+      </TabsContent>
     </>
   );
 }

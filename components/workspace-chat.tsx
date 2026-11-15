@@ -2,10 +2,10 @@
 import type { useWorkshop } from '@/lib/projects/use-workshop';
 import {
   ArrowUp,
-  ArrowUpRight,
   Check,
+  Eye,
+  EyeOff,
   LoaderCircle,
-  Sparkles,
   Square,
 } from 'lucide-react';
 const suggestions = [
@@ -32,40 +32,30 @@ export default function WorkspaceChat({
     setPrompt,
     busy,
     phase,
-    mode,
-    highlightId,
     setHiddenProposal,
     setMode,
-    setHighlightId,
     showProposal,
-    model,
     geometry,
     setComparisonSelection,
-    comparisonBase,
-    changes,
     review,
     setSetup,
     status,
-    statusError,
     conversation,
     input,
     revisionNumber,
     send,
   } = state;
+  const role = workspace.project?.role;
+  const footnote =
+    role === 'viewer'
+      ? 'View only'
+      : workspace.branch?.canEdit === false
+        ? 'Your edits start your own branch'
+        : workspace.branch && workspace.branch.headRevisionId !== selected
+          ? `Edits branch from V${revisionNumber}`
+          : '';
   return (
-    <aside className="chat-panel">
-      <div className="chat-heading">
-        <div className="ai-icon">
-          <Sparkles size={19} />
-        </div>
-        <div>
-          <h1>Design assistant</h1>
-          <p>
-            {workspace.branch?.name || 'Your project'} · Editing V
-            {revisionNumber}
-          </p>
-        </div>
-      </div>
+    <aside className="chat-panel" aria-label="Design assistant">
       <div
         className="conversation"
         ref={conversation}
@@ -75,162 +65,121 @@ export default function WorkspaceChat({
       >
         {workspace.project?.messageCursor != null && (
           <button
-            className="quiet"
+            className="quiet earlier"
             disabled={workspace.loadingMessages}
             onClick={() => void workspace.loadOlderMessages()}
           >
-            {workspace.loadingMessages ? 'Loading…' : 'Load earlier messages'}
+            {workspace.loadingMessages ? 'Loading…' : 'Earlier messages'}
           </button>
         )}
         {messages.length === 0 ? (
           <div className="intro">
-            <span className="eyebrow">LET’S MAKE SOMETHING</span>
-            <h2>
-              A little idea.
-              <br />A real-world object.
-            </h2>
-            <p>Describe your part, add dimensions, and refine it together.</p>
-            <div className="suggestions">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  className="suggestion"
-                  onClick={() => {
-                    setPrompt(s);
-                    input.current?.focus();
-                  }}
-                >
-                  {s}
-                  <ArrowUpRight size={15} />
-                </button>
-              ))}
-            </div>
-            {!status?.configured && (
-              <div className="setup-note">
-                {statusError
-                  ? 'Connection status unavailable.'
-                  : status
-                    ? 'The sample is ready to explore. Add an API key to start designing.'
-                    : 'Checking AI connection…'}{' '}
-                <button onClick={() => setSetup(true)}>Set up AI</button>
-              </div>
+            <h2>What are we making?</h2>
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                className="suggestion"
+                onClick={() => {
+                  setPrompt(s);
+                  input.current?.focus();
+                }}
+              >
+                {s}
+              </button>
+            ))}
+            {status && !status.configured && (
+              <button className="quiet line" onClick={() => setSetup(true)}>
+                Connect AI
+              </button>
             )}
-            <p className="limits">
-              Built for simple solid parts. Check dimensions and slicing before
-              printing.
-            </p>
           </div>
         ) : (
           messages.map((m, i) => (
             <div key={i} className={`message ${m.role}`}>
-              {m.role === 'assistant' && (
-                <div className="author">
-                  <Sparkles size={13} /> FORM
-                </div>
-              )}
               {m.content}
               {m.proposalId && (
-                <div className="proposal-message-status">
+                <span className="tag">
                   Proposal{' '}
                   {workspace.project?.proposals.find(
                     (p) => p.id === m.proposalId,
                   )?.status ?? 'history'}
-                </div>
+                </span>
               )}
               {m.updated && (
-                <div>
-                  <span className="update-tag">
-                    <Check size={13} /> Model updated
-                  </span>
-                </div>
+                <span className="tag ok">
+                  <Check size={12} /> Updated
+                </span>
               )}
             </div>
           ))
         )}
         {busy && (
           <div className="message pending">
-            <LoaderCircle size={14} className="spin inline mr-2" />
+            <LoaderCircle size={14} className="spin" />
             {phase}…
           </div>
         )}
       </div>
       {proposal && (
-        <section
-          className="proposal-review"
-          aria-label="Review proposed changes"
-        >
-          <strong>Proposed changes — not yet accepted</strong>
-          <p>
-            Based on V{revisionNumber}.{' '}
-            {proposal.authorId && <>By {proposal.authorId}. </>}Downloads use
-            the accepted model.
-          </p>
-          <div className="proposal-actions">
-            <button
-              disabled={busy || loadingRevision}
-              className="quiet"
-              onClick={() => {
-                setHiddenProposal(showProposal ? proposal.id : null);
-              }}
-            >
-              {showProposal ? 'Show accepted model' : 'Show proposal'}
-            </button>
-            <button
-              disabled={busy || loadingRevision}
-              className="quiet"
-              onClick={() => {
-                setHiddenProposal(null);
-                setComparisonSelection(null);
-                setMode('comparison');
-              }}
-            >
-              Compare
-            </button>
-          </div>
-          <div className="proposal-actions">
-            <button
-              disabled={busy || loadingRevision || !workspace.branch?.canEdit}
-              className="quiet accept-proposal"
-              onClick={() => void review('accept')}
-            >
-              Accept changes
-            </button>
-            <button
-              disabled={busy || loadingRevision || !workspace.branch?.canEdit}
-              className="quiet"
-              onClick={() => void review('discard')}
-            >
-              Discard
-            </button>
-            <button
-              disabled={
-                busy || loadingRevision || workspace.project?.role === 'viewer'
-              }
-              className="quiet"
-              onClick={() => {
-                setPrompt('Refine this proposal: ');
-                input.current?.focus();
-              }}
-            >
-              Refine
-            </button>
-          </div>
+        <section className="review" aria-label="Review proposed changes">
+          <button
+            disabled={busy || loadingRevision || !workspace.branch?.canEdit}
+            className="quiet primary"
+            onClick={() => void review('accept')}
+          >
+            Accept
+          </button>
+          <button
+            disabled={busy || loadingRevision || !workspace.branch?.canEdit}
+            className="quiet"
+            onClick={() => void review('discard')}
+          >
+            Discard
+          </button>
+          <button
+            disabled={busy || loadingRevision || role === 'viewer'}
+            className="quiet"
+            onClick={() => {
+              setPrompt('Refine this proposal: ');
+              input.current?.focus();
+            }}
+          >
+            Refine
+          </button>
+          <span className="grow" />
+          <button
+            disabled={busy || loadingRevision}
+            className="quiet"
+            onClick={() => {
+              setHiddenProposal(null);
+              setComparisonSelection(null);
+              setMode('comparison');
+            }}
+          >
+            Compare
+          </button>
+          <button
+            disabled={busy || loadingRevision}
+            className="quiet icon"
+            aria-label={showProposal ? 'Show accepted model' : 'Show proposal'}
+            title={showProposal ? 'Show accepted model' : 'Show proposal'}
+            onClick={() => {
+              setHiddenProposal(showProposal ? proposal.id : null);
+            }}
+          >
+            {showProposal ? <Eye size={15} /> : <EyeOff size={15} />}
+          </button>
         </section>
       )}
       {storageWarning && (
-        <div className="storage-warning" role="status">
+        <p className="note pad" role="status">
           {storageWarning}
-        </div>
-      )}
-      {loadingRevision && (
-        <div className="storage-warning" role="status">
-          Loading revision…
-        </div>
+        </p>
       )}
       {error && (
-        <div className="error" role="alert">
+        <p className="pad" role="alert">
           {error}
-        </div>
+        </p>
       )}
       <form
         className="composer"
@@ -239,44 +188,11 @@ export default function WorkspaceChat({
           void send();
         }}
       >
-        <div className="approval-setting">
-          <label htmlFor="ai-approval">AI changes</label>
-          <select
-            id="ai-approval"
-            value={workspace.project?.approvalMode ?? 'review'}
-            disabled={
-              busy || loadingRevision || workspace.project?.role !== 'owner'
-            }
-            onChange={(e) => {
-              void workspace
-                .mutate({ action: 'approval-mode', mode: e.target.value })
-                .catch((error) =>
-                  setError(
-                    error instanceof Error
-                      ? error.message
-                      : 'Unable to save approval preference.',
-                  ),
-                );
-            }}
-          >
-            <option value="review">Review changes</option>
-            <option value="auto">Apply automatically</option>
-          </select>
-          <small>
-            {proposal
-              ? 'This proposal still requires review.'
-              : workspace.project?.approvalMode === 'auto'
-                ? 'Validated edits save a new revision. Locks still apply.'
-                : 'Preview and accept each AI edit before saving a revision.'}
-          </small>
-        </div>
         <textarea
           ref={input}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          disabled={
-            busy || loadingRevision || workspace.project?.role === 'viewer'
-          }
+          disabled={busy || loadingRevision || role === 'viewer'}
           maxLength={8000}
           onKeyDown={(e) => {
             if (
@@ -290,32 +206,51 @@ export default function WorkspaceChat({
           }}
           aria-label="Describe your part"
           placeholder={
-            proposal
-              ? 'Ask a question or refine this proposal…'
-              : 'Describe a part, or ask for a change…'
+            proposal ? 'Refine or ask…' : 'Describe a part or a change'
           }
         />
         <div className="composer-bottom">
+          <select
+            aria-label="AI changes"
+            title="How AI changes are saved"
+            value={workspace.project?.approvalMode ?? 'review'}
+            disabled={busy || loadingRevision || role !== 'owner'}
+            onChange={(e) => {
+              void workspace
+                .mutate({ action: 'approval-mode', mode: e.target.value })
+                .catch((error) =>
+                  setError(
+                    error instanceof Error
+                      ? error.message
+                      : 'Unable to save approval preference.',
+                  ),
+                );
+            }}
+          >
+            <option value="review">Review first</option>
+            <option value="auto">Auto-apply</option>
+          </select>
           <span>
-            {status?.configured
-              ? `${status.model}${status.source === 'server' ? ' · shared' : ''}${status.remainingToday != null ? ` · ${status.remainingToday} left today` : ''}`
-              : 'API not connected'}
+            {footnote ||
+              (status?.configured
+                ? `${status.model}${status.remainingToday != null ? ` · ${status.remainingToday} left` : ''}`
+                : '')}
           </span>
           {busy ? (
             <button
               type="button"
-              className="send cancel"
+              className="send"
               aria-label="Cancel generation"
               onClick={chat.cancel}
             >
-              <Square size={13} />
+              <Square size={12} />
             </button>
           ) : (
             <button
               type="submit"
               className="send"
               disabled={
-                workspace.project?.role === 'viewer' ||
+                role === 'viewer' ||
                 !prompt.trim() ||
                 !geometry ||
                 loadingRevision ||
@@ -323,22 +258,11 @@ export default function WorkspaceChat({
               }
               aria-label="Send message"
             >
-              <ArrowUp size={19} />
+              <ArrowUp size={17} />
             </button>
           )}
         </div>
       </form>
-      <p className="chat-footnote">
-        {workspace.project?.role === 'viewer'
-          ? 'Viewer access: inspect and download accepted designs.'
-          : workspace.branch?.canEdit === false
-            ? 'Your next AI edit starts your own contributor branch.'
-            : workspace.branch && workspace.branch.headRevisionId !== selected
-              ? `Your next edit starts a new branch from V${revisionNumber}.`
-              : workspace.project?.approvalMode === 'auto' && !proposal
-                ? 'AI changes save automatically. You can restore an earlier revision.'
-                : 'Review AI proposals before accepting a new revision.'}
-      </p>
     </aside>
   );
 }

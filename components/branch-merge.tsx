@@ -2,12 +2,8 @@
 import { useState } from 'react';
 import { api, type useProjects } from '@/lib/projects/client';
 import type { MergeConflict, MergeChoices } from '@/lib/cad/merge';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
+import { GitMerge } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 type Preview = {
   conflicts: MergeConflict[];
   sourceRevisionId: string;
@@ -61,7 +57,9 @@ export default function BranchMerge({
   return (
     <>
       <button
-        className="quiet"
+        className="quiet icon"
+        aria-label="Merge branches"
+        title="Merge a branch into this one"
         disabled={
           busy ||
           workspace.loading ||
@@ -78,7 +76,7 @@ export default function BranchMerge({
           setOpen(true);
         }}
       >
-        Merge branches
+        <GitMerge size={15} />
       </button>
       <Dialog
         open={open}
@@ -86,14 +84,10 @@ export default function BranchMerge({
           if (!saving) setOpen(v);
         }}
       >
-        <DialogContent className="sm:max-w-xl p-7 max-h-[85dvh] overflow-y-auto">
+        <DialogContent className="dialog form sm:max-w-md">
           <DialogTitle>Merge into {workspace.branch?.name}</DialogTitle>
-          <DialogDescription>
-            Combine accepted branch changes. You will review the resulting model
-            before accepting the merge.
-          </DialogDescription>
           <label>
-            Contribution branch
+            From
             <select
               aria-label="Contribution branch"
               value={source}
@@ -114,9 +108,8 @@ export default function BranchMerge({
             </select>
           </label>
           {preview?.conflicts.map((c) => (
-            <div key={c.path} className="merge-conflict">
+            <div key={c.path} className="conflict">
               <strong>{c.path}</strong>
-              <p>Both branches changed this value. Choose what to keep.</p>
               <label>
                 <input
                   type="radio"
@@ -126,7 +119,7 @@ export default function BranchMerge({
                     setChoices({ ...choices, [c.path]: 'target' })
                   }
                 />{' '}
-                Current branch <code>{JSON.stringify(c.target)}</code>
+                {workspace.branch?.name} <code>{JSON.stringify(c.target)}</code>
               </label>
               <label>
                 <input
@@ -137,14 +130,13 @@ export default function BranchMerge({
                     setChoices({ ...choices, [c.path]: 'source' })
                   }
                 />{' '}
-                Contribution <code>{JSON.stringify(c.source)}</code>
+                {p.branches.find((b) => b.id === source)?.name}{' '}
+                <code>{JSON.stringify(c.source)}</code>
               </label>
             </div>
           ))}
           {preview && !preview.conflicts.length && (
-            <p>
-              No conflicting changes. Prepare a model comparison for review.
-            </p>
+            <p className="note">No conflicts.</p>
           )}
           {error && <p role="alert">{error}</p>}
           <button
@@ -156,11 +148,7 @@ export default function BranchMerge({
             }
             onClick={() => void run(!preview)}
           >
-            {saving
-              ? 'Preparing…'
-              : preview
-                ? 'Prepare merge proposal'
-                : 'Check changes'}
+            {saving ? 'Preparing…' : preview ? 'Merge for review' : 'Check'}
           </button>
         </DialogContent>
       </Dialog>

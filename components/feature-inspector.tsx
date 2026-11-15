@@ -23,29 +23,26 @@ export default function FeatureInspector({
   const feature =
     model.operations.find((o) => o.id === selected) ?? model.operations[0];
   return (
-    <details className="feature-inspector" open>
-      <summary>Feature inspector · dimensions & position</summary>
-      <label>
-        Feature
-        <select
-          value={feature.id}
-          disabled={disabled}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          {model.operations.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name} · {o.operation} {o.kind}
-            </option>
-          ))}
-        </select>
-      </label>
+    <div className="form">
+      <select
+        aria-label="Feature"
+        value={feature.id}
+        disabled={disabled}
+        onChange={(e) => setSelected(e.target.value)}
+      >
+        {model.operations.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name} · {o.operation} {o.kind}
+          </option>
+        ))}
+      </select>
       <FeatureFields
         key={JSON.stringify(feature)}
         feature={feature}
         disabled={disabled}
         submit={submit}
       />
-    </details>
+    </div>
   );
 }
 function FeatureFields({
@@ -66,6 +63,7 @@ function FeatureFields({
     JSON.stringify(position.map(Number)) === JSON.stringify(feature.position);
   return (
     <form
+      className="form"
       onSubmit={async (e) => {
         e.preventDefault();
         setError('');
@@ -79,16 +77,15 @@ function FeatureFields({
         }
       }}
     >
-      <p>
-        Dimensions follow the feature’s local axes. Position is its center in
-        world coordinates. All values are millimeters.
-      </p>
-      <fieldset disabled={disabled || saving}>
-        <legend>Dimensions (mm)</legend>
-        <div className="feature-fields">
-          {['Width X', 'Depth Y', 'Height Z'].map((label, i) => (
+      <fieldset className="form" disabled={disabled || saving}>
+        <div className="fields three">
+          {[
+            ['Width X', 'W'],
+            ['Depth Y', 'D'],
+            ['Height Z', 'H'],
+          ].map(([label, short], i) => (
             <label key={label}>
-              {label}
+              {short} · mm
               <input
                 aria-label={label}
                 type="number"
@@ -104,11 +101,14 @@ function FeatureFields({
             </label>
           ))}
         </div>
-        <legend>Center position (mm)</legend>
-        <div className="feature-fields">
-          {['Center X', 'Center Y', 'Center Z'].map((label, i) => (
+        <div className="fields three">
+          {[
+            ['Center X', 'X'],
+            ['Center Y', 'Y'],
+            ['Center Z', 'Z'],
+          ].map(([label, short], i) => (
             <label key={label}>
-              {label}
+              {short} · center
               <input
                 aria-label={label}
                 type="number"
@@ -126,9 +126,11 @@ function FeatureFields({
             </label>
           ))}
         </div>
-        <button className="quiet" type="submit" disabled={unchanged}>
-          {saving ? 'Preparing proposal…' : 'Preview feature edit'}
-        </button>
+        <div className="row end">
+          <button className="quiet primary" type="submit" disabled={unchanged}>
+            {saving ? 'Preparing…' : 'Preview'}
+          </button>
+        </div>
       </fieldset>
       {error && <p role="alert">{error}</p>}
     </form>

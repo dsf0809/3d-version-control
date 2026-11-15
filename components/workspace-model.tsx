@@ -2,7 +2,16 @@
 import ModelViewer from '@/components/model-viewer';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { useWorkshop } from '@/lib/projects/use-workshop';
-import { Download, LoaderCircle } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Download,
+  LoaderCircle,
+  Lock,
+  PanelBottomClose,
+  PanelBottomOpen,
+  Share2,
+  SlidersHorizontal,
+} from 'lucide-react';
 export default function WorkspaceModel({
   state,
 }: {
@@ -12,9 +21,9 @@ export default function WorkspaceModel({
     workspace,
     proposal,
     revisions,
+    revision,
     selected,
     loadingRevision,
-    prompt,
     busy,
     phase,
     focusModel,
@@ -32,7 +41,6 @@ export default function WorkspaceModel({
     fromId,
     toId,
     comparisonBase,
-    comparisonLabel,
     changes,
     setPickedFeature,
     setTool,
@@ -41,142 +49,110 @@ export default function WorkspaceModel({
     diffError,
     edited,
     selectRevision,
-    exportFormat,
-    setExportFormat,
-    download,
   } = state;
+  const owner = workspace.project?.role === 'owner';
+  const locks = workspace.project?.dimensionLocks.length ?? 0;
+  const versions = allVersions.map((r) => (
+    <option key={r.id} value={r.id}>
+      V{r.ordinal} · {r.modelName || 'Revision'}
+    </option>
+  ));
+  const compare = (from: string, to: string) => {
+    setHighlightId(null);
+    setComparisonSelection({ scope: comparisonScope, from, to });
+  };
+  const status = !comparisonBase
+    ? 'Nothing to compare yet'
+    : comparing
+      ? 'Comparing…'
+      : diffError
+        ? diffError
+        : comparison &&
+            comparison.volumes.added < 0.001 &&
+            comparison.volumes.removed < 0.001
+          ? 'No changes'
+          : '';
   return (
     <section
       className={`viewer-panel ${focusModel ? 'model-focused' : ''}`}
       aria-label="3D visualization"
     >
-      <div className="panel-top">
-        <span className="eyebrow">MODEL SPACE</span>
-        <span className="unit">mm</span>
-      </div>
-      <div className="model-label">
-        <h2>
-          {mode === 'comparison' ? 'Version comparison' : model.name}
-          {showProposal && mode === 'original' && (
-            <span className="sample-badge">PROPOSAL</span>
-          )}
-          {!edited && <span className="sample-badge">SAMPLE</span>}
-        </h2>
-        <p>
-          {mode === 'comparison'
-            ? comparisonLabel
-            : geometry
+      <header className="viewer-head">
+        <div className="model-label">
+          <h2>
+            {model.name}
+            {showProposal && mode === 'original' && (
+              <span className="badge accent">Proposal</span>
+            )}
+            {!edited && <span className="badge">Sample</span>}
+          </h2>
+          <p>
+            {geometry
               ? geometry.dimensions
                   .map((n) => Number(n.toFixed(1)))
                   .join(' × ') + ' mm'
-              : 'Preparing solid geometry…'}
-        </p>
-      </div>
-      <div className="view-mode">
-        <button
-          className="quiet focus-model-toggle"
-          aria-pressed={focusModel}
-          onClick={() => setFocusModel((focused) => !focused)}
-          title="Expand the canvas by hiding comparison and history controls"
-        >
-          {focusModel ? 'Show controls' : 'Focus model'}
-        </button>
+              : '…'}
+          </p>
+        </div>
         <Tabs
           value={mode}
           onValueChange={(v) => setMode(v as 'original' | 'comparison')}
         >
-          <TabsList aria-label="Visualization mode" className="view-mode-list">
+          <TabsList aria-label="Visualization mode">
             <TabsTrigger disabled={workspace.loading} value="original">
-              Model Original
+              Model
             </TabsTrigger>
             <TabsTrigger disabled={workspace.loading} value="comparison">
-              Changes Comparison
+              Changes
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
-      {mode === 'comparison' && (
-        <div
-          className="comparison-picker"
-          aria-label="Choose comparison versions"
+        <button
+          className={`quiet icon ${focusModel ? 'active' : ''}`}
+          aria-pressed={focusModel}
+          aria-label="Focus model"
+          title={focusModel ? 'Show controls' : 'Hide controls'}
+          onClick={() => setFocusModel((focused) => !focused)}
         >
-          <label>
-            From
-            <select
-              aria-label="Compare from version"
-              value={fromId}
-              onChange={(e) => {
-                setHighlightId(null);
-                setComparisonSelection({
-                  scope: comparisonScope,
-                  from: e.target.value,
-                  to: toId,
-                });
-              }}
-            >
-              {allVersions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  V{r.ordinal} · {r.modelName || 'Revision'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <span aria-hidden="true">→</span>
-          <label>
-            To
-            <select
-              aria-label="Compare to version"
-              value={toId}
-              onChange={(e) => {
-                setHighlightId(null);
-                setComparisonSelection({
-                  scope: comparisonScope,
-                  from: fromId,
-                  to: e.target.value,
-                });
-              }}
-            >
-              {allVersions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  V{r.ordinal} · {r.modelName || 'Revision'}
-                </option>
-              ))}
-              {proposal && <option value="proposal">Pending proposal</option>}
-            </select>
-          </label>
-          <button
-            className="quiet"
-            disabled={toId === 'proposal'}
-            onClick={() => {
-              setHighlightId(null);
-              setComparisonSelection({
-                scope: comparisonScope,
-                from: toId,
-                to: fromId,
-              });
-            }}
-          >
-            Swap
-          </button>
-        </div>
-      )}
+          {focusModel ? (
+            <PanelBottomOpen size={16} />
+          ) : (
+            <PanelBottomClose size={16} />
+          )}
+        </button>
+      </header>
       {mode === 'comparison' && (
-        <div className="comparison-caption" role="status">
-          {!comparisonBase ? (
-            'No previous version yet. Send a model edit to create a comparison.'
-          ) : comparing ? (
-            'Computing solid differences…'
-          ) : diffError ? (
-            `Comparison unavailable: ${diffError}`
-          ) : comparison ? (
-            <>
-              <span className="diff-pair">{comparisonLabel}</span>
-              {comparison.volumes.added < 0.001 &&
-                comparison.volumes.removed < 0.001 && (
-                  <span>No geometric changes</span>
-                )}
-            </>
-          ) : null}
+        <div className="compare-bar" aria-label="Choose comparison versions">
+          <select
+            aria-label="Compare from version"
+            value={fromId}
+            onChange={(e) => compare(e.target.value, toId)}
+          >
+            {versions}
+          </select>
+          <button
+            className="quiet icon"
+            aria-label="Swap versions"
+            title="Swap"
+            disabled={toId === 'proposal'}
+            onClick={() => compare(toId, fromId)}
+          >
+            <ArrowLeftRight size={14} />
+          </button>
+          <select
+            aria-label="Compare to version"
+            value={toId}
+            onChange={(e) => compare(fromId, e.target.value)}
+          >
+            {versions}
+            {proposal && <option value="proposal">Proposal</option>}
+          </select>
+          <span
+            role="status"
+            className={diffError && comparisonBase && !comparing ? 'bad' : ''}
+          >
+            {status}
+          </span>
         </div>
       )}
       <div className="model-stage">
@@ -197,14 +173,43 @@ export default function WorkspaceModel({
           geometry={geometry}
           comparison={mode === 'comparison' ? comparison : null}
         />
+        {busy && (
+          <div className="busy-pill" role="status">
+            <LoaderCircle className="spin" size={14} />
+            {phase}
+          </div>
+        )}
       </div>
-      <div className="revision-strip">
-        <div className="revision-strip-label">
-          REVISIONS <span>Saved in this project</span>
+      <footer className="viewer-foot">
+        <div className="revisions" role="group" aria-label="Model revisions">
+          {workspace.project?.revisionCursor != null && (
+            <button
+              className="chip"
+              disabled={workspace.loadingRevisions}
+              aria-label="Older revisions"
+              title="Older revisions"
+              onClick={() => void workspace.loadOlderRevisions()}
+            >
+              {workspace.loadingRevisions ? '…' : '‹'}
+            </button>
+          )}
+          {revisions.map((r) => (
+            <button
+              key={r.id}
+              className="chip"
+              disabled={busy || loadingRevision}
+              aria-pressed={selected === r.id}
+              title={`${r.prompt}${r.authorId ? ' · By ' + r.authorId : ''}${r.mergeParentId ? ' · Merged contribution' : ''}${r.createdAt ? ' · ' + new Date(r.createdAt).toLocaleString() : ''}`}
+              onClick={() => void selectRevision(r)}
+            >
+              V{r.ordinal}
+            </button>
+          ))}
           {workspace.branch && workspace.branch.headRevisionId !== selected && (
             <button
               className="quiet"
               disabled={busy || loadingRevision}
+              title="Make this version the latest"
               onClick={() =>
                 void workspace
                   .mutate({
@@ -215,60 +220,45 @@ export default function WorkspaceModel({
                   .catch(() => {})
               }
             >
-              Restore this version
+              Restore
             </button>
           )}
         </div>
-        <div className="revision-buttons" aria-label="Model revisions">
-          {workspace.project?.revisionCursor != null && (
-            <button
-              className="quiet"
-              disabled={workspace.loadingRevisions}
-              onClick={() => void workspace.loadOlderRevisions()}
-            >
-              {workspace.loadingRevisions ? 'Loading…' : 'Older revisions'}
-            </button>
-          )}
-          {revisions.map((r) => (
-            <button
-              key={r.id}
-              className={`revision-button ${selected === r.id ? 'selected' : ''}`}
-              disabled={busy || loadingRevision}
-              aria-pressed={selected === r.id}
-              title={`${r.prompt}${r.authorId ? ' · By ' + r.authorId : ''}${r.mergeParentId ? ' · Merged contribution' : ''}${r.createdAt ? ' · ' + new Date(r.createdAt).toLocaleString() : ''}`}
-              onClick={() => void selectRevision(r)}
-            >
-              V{r.ordinal}
-              <span>{r.parentId ? r.modelName || 'Revision' : 'Sample'}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      {busy && (
-        <div className="busy-pill" role="status">
-          <LoaderCircle className="spin" size={15} />
-          {phase}
-        </div>
-      )}
-      <div className="viewer-bottom">
-        <span>Drag to orbit · Scroll to zoom</span>
-        <select
-          aria-label="Export format"
-          value={exportFormat}
-          onChange={(e) => setExportFormat(e.target.value as 'stl' | '3mf')}
-        >
-          <option value="3mf">3MF (mm + color)</option>
-          <option value="stl">STL</option>
-        </select>
-        <button
-          className="quiet"
-          onClick={() => void download()}
-          disabled={!geometry || busy || loadingRevision}
-        >
-          <Download size={16} />{' '}
-          {`Export ${proposal ? 'accepted ' : ''}${exportFormat.toUpperCase()}`}
-        </button>
-      </div>
+        <nav className="tools" aria-label="Design tools">
+          <button
+            className="quiet"
+            disabled={!revision || !workspace.branch?.canEdit}
+            onClick={() => setTool('edit')}
+          >
+            <SlidersHorizontal size={15} />
+            <span>Edit</span>
+          </button>
+          <button
+            className="quiet"
+            disabled={!revision || !owner}
+            onClick={() => setTool('locks')}
+          >
+            <Lock size={15} />
+            <span>Locks{locks ? ` ${locks}` : ''}</span>
+          </button>
+          <button
+            className="quiet"
+            disabled={!revision || !owner}
+            onClick={() => setTool('sharing')}
+          >
+            <Share2 size={15} />
+            <span>Share</span>
+          </button>
+          <button
+            className="quiet line"
+            disabled={!revision}
+            onClick={() => setTool('export')}
+          >
+            <Download size={15} />
+            <span>Export</span>
+          </button>
+        </nav>
+      </footer>
     </section>
   );
 }

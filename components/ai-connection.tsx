@@ -1,11 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 export type ProviderOption = {
   id: string;
@@ -70,7 +65,7 @@ export function ConnectionForm({
   const endpoint = info?.customUrl && canSetEndpoint;
   return (
     <form
-      className="grid gap-3"
+      className="form"
       onSubmit={async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -87,7 +82,7 @@ export function ConnectionForm({
         }
       }}
     >
-      <label className="grid gap-1 text-sm font-medium">
+      <label>
         Provider
         <select
           value={provider}
@@ -96,7 +91,6 @@ export function ConnectionForm({
             setProvider(e.target.value);
             setModel(e.target.value === current?.provider ? current.model : '');
           }}
-          className="w-full min-w-0 rounded-lg border p-3"
         >
           {providers
             .filter((p) => !p.customUrl || canSetEndpoint)
@@ -107,7 +101,7 @@ export function ConnectionForm({
             ))}
         </select>
       </label>
-      <label className="grid gap-1 text-sm font-medium">
+      <label>
         Model
         <input
           value={model}
@@ -121,11 +115,10 @@ export function ConnectionForm({
           required={!info?.defaultModel}
           autoCapitalize="none"
           spellCheck={false}
-          className="w-full min-w-0 rounded-lg border p-3"
         />
       </label>
       {endpoint && (
-        <label className="grid gap-1 text-sm font-medium">
+        <label>
           Endpoint URL
           <input
             value={baseUrl}
@@ -134,12 +127,11 @@ export function ConnectionForm({
             placeholder={info.baseUrl || 'https://host/v1'}
             required={!info.baseUrl}
             type="url"
-            className="w-full min-w-0 rounded-lg border p-3"
           />
         </label>
       )}
-      <label className="grid gap-1 text-sm font-medium">
-        API key{info?.keyRequired ? '' : ' (optional)'}
+      <label>
+        API key{info?.keyRequired ? '' : ' · optional'}
         <input
           type="password"
           autoComplete="off"
@@ -148,14 +140,11 @@ export function ConnectionForm({
           value={key}
           disabled={saving}
           onChange={(e) => setKey(e.target.value)}
-          placeholder={
-            keeping ? 'Leave empty to keep the saved key' : info?.keyHint
-          }
+          placeholder={keeping ? 'Saved — leave empty to keep' : info?.keyHint}
           required={!!info?.keyRequired && !keeping}
-          className="w-full min-w-0 rounded-lg border p-3"
         />
       </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="row end">
         <button className="quiet primary" type="submit" disabled={saving}>
           {saving ? 'Saving…' : submitLabel}
         </button>
@@ -232,31 +221,19 @@ export default function AIConnection({
   };
   return (
     <Dialog open={open} onOpenChange={change}>
-      <DialogContent className="ai-connection-dialog sm:max-w-md p-6">
+      <DialogContent className="dialog sm:max-w-md">
         <DialogTitle>AI connection</DialogTitle>
-        <DialogDescription>
-          Use your own API key from any supported provider. Keys are stored
-          encrypted on this server for your account only.
-        </DialogDescription>
         {overview?.shared && (
-          <p className="text-sm rounded-lg border p-3">
-            {overview.personal
-              ? 'Without a personal key you would use'
-              : 'You are using'}{' '}
-            the server’s shared connection ({overview.shared.provider} ·{' '}
-            {overview.shared.model})
+          <p className="note">
+            Shared · {overview.shared.provider} · {overview.shared.model}
             {status?.remainingToday != null
-              ? `, limited to ${overview.shared.dailyLimit} requests a day (${status.remainingToday} left today). Your own key removes the limit.`
-              : '.'}
+              ? ` · ${status.remainingToday} of ${overview.shared.dailyLimit} left today`
+              : ''}
           </p>
         )}
-        {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
+        {error && <p role="alert">{error}</p>}
         {notice && (
-          <p role="status" className="text-sm">
+          <p role="status" className="note">
             {notice}
           </p>
         )}
@@ -266,15 +243,12 @@ export default function AIConnection({
             providers={overview.providers}
             current={overview.personal}
             canSetEndpoint={overview.canSetEndpoint}
-            submitLabel={overview.personal ? 'Update my connection' : 'Apply'}
+            submitLabel={overview.personal ? 'Update' : 'Connect'}
             onSave={(body) => send('POST', body)}
             onRemove={overview.personal ? () => send('DELETE') : undefined}
           />
         )}
-        <p className="text-xs text-slate-500">
-          Requests with your key use your provider billing. Saving does not make
-          a paid test call.
-        </p>
+        <p className="note">Your key is stored encrypted, for you only.</p>
       </DialogContent>
     </Dialog>
   );
